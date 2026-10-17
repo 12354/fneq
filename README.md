@@ -135,8 +135,8 @@ docker run --rm fneq fneq-corpus --target x64-sysv   # one target
 ```
 
 A case passes only with the expected verdict class; skipped cases (missing toolchain,
-e.g. MSVC) are listed separately and never count as passes. CI
-(`.github/workflows/ci.yml`) runs the unit tests and the corpus on every change.
+e.g. MSVC) are listed separately and never count as passes. Run the unit tests with
+`docker run --rm -w /opt/fneq fneq python3 -m pytest -q tests`.
 
 ## Pinned toolchain
 
