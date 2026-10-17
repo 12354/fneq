@@ -1,0 +1,9 @@
+*
+!lifter
+!requirements.lock
+!pyproject.toml
+!fneq
+!corpus/src
+!corpus/corpus.toml
+!tests
+**/__pycache__

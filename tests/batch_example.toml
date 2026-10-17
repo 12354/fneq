@@ -1,0 +1,19 @@
+[[pair]]
+name = "add commute"
+a = "/cache/corpus/x64-sysv/gcc-O2/arith.elf:add_ab"
+b = "/cache/corpus/x64-sysv/gcc-O2/arith.elf:add_ba"
+ret = "i32"
+
+[[pair]]
+name = "rare input"
+a = "/cache/corpus/x64-sysv/gcc-O2/arith.elf:rare_base"
+b = "/cache/corpus/x64-sysv/gcc-O2/arith.elf:rare_mut"
+ret = "i32"
+
+[[pair]]
+name = "O0 vs O2 call_chain (ms)"
+a = "/cache/corpus/x64-ms/gcc-O0/calls.elf:call_chain"
+b = "/cache/corpus/x64-ms/gcc-O2/calls.elf:call_chain"
+cc = "ms"
+ret = "i32"
+map_by_symbols = true

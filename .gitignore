@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+corpus/build/
+docker/*.log
+spike/*.ll
+spike/*.o
+spike/*.bin
+spike/*.spec.json
+spike/fneq-lift-asan
+.pytest_cache/
+spike/spec*.json

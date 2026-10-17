@@ -1,0 +1,249 @@
+# fneq self-test corpus: function pairs with known answers.
+#
+# expect = "equivalent" -> the pair passes only with EQUIVALENT or EQUIVALENT_BOUNDED(k)
+# expect = "different"  -> the pair passes only with a confirmed NOT_EQUIVALENT
+# Anything else (UNKNOWN, NO_DIFFERENCE_FOUND, tool error) is a failure; a case that
+# cannot run (missing toolchain) is reported as SKIPPED and never counts as a pass.
+#
+# mode = "variant": compare function a against function b, both built with each build
+#                   listed in `builds`.
+# mode = "cross":   compare the same function built two different ways, for each
+#                   [build_a, build_b] pair in `cross`.
+#
+# Targets default to every supported calling convention on both architectures:
+#   x86-cdecl x86-stdcall x86-fastcall x86-thiscall x64-sysv x64-ms
+# Builds are defined in fneq/corpus.py (gcc/clang produce ELF, mingw produces PE).
+
+# Return kind of each function (what a user would pass with --ret).
+[ret]
+add_ab = "i32"
+add_ba = "i32"
+mul2 = "i32"
+shl1 = "i32"
+min_branch = "i32"
+min_bits = "i32"
+lt10 = "i32"
+le10 = "i32"
+cmp_signed = "i32"
+cmp_unsigned = "i32"
+rare_base = "i32"
+rare_mut = "i32"
+clamp = "i32"
+absdiff = "i32"
+udivmod = "i32"
+mul64_ab = "i64"
+mul64_ba = "i64"
+mul64_trunc = "i64"
+set2 = "void"
+set2_rev = "void"
+set1 = "void"
+bump = "void"
+sum4_rolled = "i32"
+sum4_unrolled = "i32"
+sum_n = "i32"
+tri = "i32"
+alias_rw = "i32"
+call_ab = "i32"
+call_ba = "i32"
+call_chain = "i32"
+fmul2 = "f64"
+fadd2 = "f64"
+x87_mul = "f64"
+x87_mul24 = "f64"
+
+# ------------------------------------------------------------ known-equivalent
+
+[[pair]]
+name = "add_commute"
+expect = "equivalent"
+mode = "variant"
+a = "arith.c:add_ab"
+b = "arith.c:add_ba"
+builds = ["gcc-O2", "clang-O2", "mingw-O2"]
+
+[[pair]]
+name = "mul2_vs_shl1"
+expect = "equivalent"
+mode = "variant"
+a = "arith.c:mul2"
+b = "arith.c:shl1"
+builds = ["gcc-O0", "clang-O2"]
+
+[[pair]]
+name = "branch_vs_branchless_min"
+expect = "equivalent"
+mode = "variant"
+a = "arith.c:min_branch"
+b = "arith.c:min_bits"
+builds = ["gcc-O0", "clang-O2"]
+
+[[pair]]
+name = "rolled_vs_unrolled_loop"
+expect = "equivalent"
+mode = "variant"
+a = "mem.c:sum4_rolled"
+b = "mem.c:sum4_unrolled"
+builds = ["gcc-O0", "clang-O2"]
+
+[[pair]]
+name = "store_order"
+expect = "equivalent"
+mode = "variant"
+a = "mem.c:set2"
+b = "mem.c:set2_rev"
+builds = ["gcc-O0"]
+
+[[pair]]
+name = "mul64_commute"
+expect = "equivalent"
+mode = "variant"
+a = "arith.c:mul64_ab"
+b = "arith.c:mul64_ba"
+builds = ["gcc-O2", "clang-O0"]
+
+[[pair]]
+name = "fp_mul2_vs_add"
+expect = "equivalent"
+mode = "variant"
+a = "fp.c:fmul2"
+b = "fp.c:fadd2"
+builds = ["gcc-O2-sse", "clang-O2-sse"]
+
+[[pair]]
+name = "O0_vs_O2"
+expect = "equivalent"
+mode = "cross"
+funcs = ["arith.c:clamp", "arith.c:absdiff", "arith.c:udivmod", "mem.c:bump",
+         "mem.c:alias_rw", "calls.c:call_ab", "calls.c:call_chain"]
+cross = [["gcc-O0", "gcc-O2"], ["clang-O0", "clang-O2"], ["mingw-O0", "mingw-O2"]]
+
+[[pair]]
+name = "gcc_vs_clang"
+expect = "equivalent"
+mode = "cross"
+funcs = ["arith.c:clamp", "arith.c:absdiff", "arith.c:udivmod", "mem.c:bump",
+         "calls.c:call_ab", "calls.c:call_chain"]
+cross = [["gcc-O2", "clang-O2"], ["gcc-O2", "mingw-O2"], ["gcc-O2", "msvc-O2"]]
+
+[[pair]]
+name = "fp_gcc_vs_clang"
+expect = "equivalent"
+mode = "cross"
+funcs = ["fp.c:fmul2"]
+cross = [["gcc-O2-sse", "clang-O2-sse"]]
+
+# x87 arithmetic in both builds: equivalent, but neither solver models x87
+# arithmetic yet, so this pair is expected to fail (NO_DIFFERENCE_FOUND) until it does.
+[[pair]]
+name = "x87_equivalent"
+expect = "equivalent"
+mode = "cross"
+funcs = ["fp.c:fmul2"]
+cross = [["gcc-O2", "mingw-O2"]]
+targets = ["x86-cdecl", "x86-stdcall", "x86-fastcall", "x86-thiscall"]
+
+# Variable trip count: provable only up to the unroll bound -> EQUIVALENT_BOUNDED(k).
+[[pair]]
+name = "loop_bounded"
+expect = "equivalent"
+mode = "cross"
+funcs = ["arith.c:tri"]
+cross = [["gcc-O0", "gcc-O2"], ["gcc-O0", "clang-O2-novec"]]
+
+[[pair]]
+name = "loop_bounded_mem"
+expect = "equivalent"
+mode = "cross"
+funcs = ["mem.c:sum_n"]
+cross = [["gcc-O0", "gcc-O2"]]
+targets = ["x64-sysv", "x64-ms"]
+
+# On 32-bit x86 the -O2 loop compares against an end pointer p + 4n that wraps
+# around the address space, while -O0 really iterates n times and faults: the
+# compiler relied on C's rule that pointer arithmetic never overflows. fneq
+# judges machine behaviour, so these are different.
+[[pair]]
+name = "pointer_wrap"
+expect = "different"
+mode = "cross"
+funcs = ["mem.c:sum_n"]
+cross = [["gcc-O0", "gcc-O2"], ["gcc-O0", "clang-O2"]]
+targets = ["x86-cdecl", "x86-stdcall", "x86-fastcall", "x86-thiscall"]
+
+# The same loop vectorised by clang: remill's SSE semantics produce byte-level
+# vector IR that currently exceeds the solvers on x86-64 (known limitation).
+[[pair]]
+name = "loop_vectorized"
+expect = "equivalent"
+mode = "cross"
+funcs = ["mem.c:sum_n"]
+cross = [["gcc-O0", "clang-O2"]]
+targets = ["x64-sysv", "x64-ms"]
+
+# ------------------------------------------------------------- known-different
+
+[[pair]]
+name = "off_by_one"
+expect = "different"
+mode = "variant"
+a = "arith.c:lt10"
+b = "arith.c:le10"
+builds = ["gcc-O2", "clang-O0"]
+
+[[pair]]
+name = "signed_vs_unsigned"
+expect = "different"
+mode = "variant"
+a = "arith.c:cmp_signed"
+b = "arith.c:cmp_unsigned"
+builds = ["gcc-O2", "clang-O0"]
+
+[[pair]]
+name = "swapped_call_args"
+expect = "different"
+mode = "variant"
+a = "calls.c:call_ab"
+b = "calls.c:call_ba"
+builds = ["gcc-O2", "clang-O0"]
+
+[[pair]]
+name = "dropped_write"
+expect = "different"
+mode = "variant"
+a = "mem.c:set2"
+b = "mem.c:set1"
+builds = ["gcc-O2", "clang-O0"]
+
+[[pair]]
+name = "mul64_truncated"
+expect = "different"
+mode = "variant"
+a = "arith.c:mul64_ab"
+b = "arith.c:mul64_trunc"
+builds = ["gcc-O2"]
+
+[[pair]]
+name = "x87_precision"
+expect = "different"
+mode = "variant"
+a = "fp.c:x87_mul"
+b = "fp.c:x87_mul24"
+builds = ["gcc-O2"]
+
+# On x86, gcc evaluates double arithmetic on the x87 stack (extended exponent range)
+# while an SSE build rounds every step to double: x+x+y differs for huge x.
+[[pair]]
+name = "x87_vs_sse"
+expect = "different"
+mode = "cross"
+funcs = ["fp.c:fmul2"]
+cross = [["gcc-O2", "gcc-O2-sse"]]
+targets = ["x86-cdecl", "x86-stdcall", "x86-fastcall", "x86-thiscall"]
+
+[[pair]]
+name = "rare_input"
+expect = "different"
+mode = "variant"
+a = "arith.c:rare_base"
+b = "arith.c:rare_mut"
+builds = ["gcc-O2", "clang-O2"]

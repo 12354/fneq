@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  corpus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # The toolchain (LLVM, remill, Alive2, Z3) is pinned in the Dockerfile; the
+      # layer cache keeps rebuilds cheap.
+      - name: Build the fneq image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: fneq:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Check pinned tool versions
+        run: docker run --rm fneq:ci fneq --check-tools
+
+      - name: Unit tests (UB-free lowering, components)
+        run: docker run --rm -w /opt/fneq fneq:ci python3 -m pytest -q tests
+
+      # Every corpus pair must be classified correctly. Cases that cannot run (for
+      # example MSVC builds) are reported as SKIP and do not count as passes.
+      - name: Corpus
+        run: |
+          mkdir -p out
+          docker run --rm -v "$PWD/out:/out" fneq:ci \
+            fneq-corpus --jobs 2 --json-out /out/corpus.json
+
+      - name: Upload corpus results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-results
+          path: out/corpus.json

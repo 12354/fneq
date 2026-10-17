@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fneq"
+version = "0.1.0"
+description = "Equivalence checker for two compiled x86/x86-64 functions"
+requires-python = ">=3.12"
+# Exact versions are pinned in requirements.lock (installed by the Dockerfile).
+dependencies = ["angr", "unicorn", "capstone", "pyelftools", "pefile"]
+
+[project.scripts]
+fneq = "fneq.cli:main"
+fneq-corpus = "fneq.corpus:main"
+
+[tool.setuptools]
+packages = ["fneq"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
