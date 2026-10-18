@@ -32,9 +32,10 @@ class FuzzResult:
     coverage_b: set[int]
     unmapped: list[dict]
     exhausted_runs: int
+    stopped: str = ""                     # why the campaign ended early, if it did
 
 
-MIN_RANDOM_RUNS = 300
+LOW_COVERAGE_RUNS = 40   # runs after which a campaign that reaches almost no code stops
 
 
 def _float_patterns() -> list[int]:
@@ -169,12 +170,22 @@ def fuzz(sig: Signature, a: Side, b: Side, checks: Checks, env: Environment,
     total = len(probes) + iterations
     import time
     deadline = time.monotonic() + time_budget
+    stopped = ""
     for i in range(total):
-        # The budget only cuts the campaign after a minimum number of random runs,
-        # so that results do not depend on machine load.
-        if i >= len(probes) + min(iterations, MIN_RANDOM_RUNS) and time.monotonic() > deadline:
+        # The time budget is a hard limit (checked before every run).
+        if time.monotonic() > deadline:
             total = i  # campaign budget used up; report the runs actually done
+            stopped = f"time budget of {time_budget:g} s used up after {i} runs"
             break
+        if i == LOW_COVERAGE_RUNS:
+            ca, cb = coverage_report(a.info, cov_a), coverage_report(b.info, cov_b)
+            low = [f"{n} {c['covered']}/{c['blocks']} blocks" for n, c in (("A", ca), ("B", cb))
+                   if c["blocks"] >= 4 and (c["covered"] <= 1 or c["percent"] < 5)]
+            if low:
+                total = i
+                stopped = (f"coverage stayed near zero ({', '.join(low)} after {i} runs); "
+                           "testing cannot say anything about this pair")
+                break
         inputs = probes[i] if i < len(probes) else base_inputs()
         mem_seed = 0 if i < len(probes) else rng.getrandbits(32)
         env_a = dataclasses.replace(env, memory_seed=mem_seed, regions=a.regions)
@@ -193,7 +204,7 @@ def fuzz(sig: Signature, a: Side, b: Side, checks: Checks, env: Environment,
         if diffs:
             return FuzzResult(i + 1, {"inputs": inputs, "memory_seed": mem_seed}, diffs,
                               ra, rb, cov_a, cov_b, unmapped, exhausted)
-    return FuzzResult(total, None, [], None, None, cov_a, cov_b, unmapped, exhausted)
+    return FuzzResult(total, None, [], None, None, cov_a, cov_b, unmapped, exhausted, stopped)
 
 
 def coverage_report(info: FunctionInfo, covered: set[int]) -> dict:

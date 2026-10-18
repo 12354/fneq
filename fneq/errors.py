@@ -15,3 +15,7 @@ class ToolError(FneqError):
 
 class Unsupported(FneqError):
     """The function uses something we cannot analyse soundly. Verdict UNKNOWN."""
+
+
+class ToolTimeout(ToolError):
+    """An external tool exceeded its wall-clock limit (no answer, not a malfunction)."""

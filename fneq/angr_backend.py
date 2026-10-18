@@ -79,8 +79,8 @@ def _callee_procedure(spec, word: int, frame: tuple[int, int]):
             g = st.globals
             sp = st.regs.sp
             args = [_reg(st, r) for r in spec.reg_args]
-            for off in spec.stack_offsets(word):
-                args.append(st.memory.load(sp + off, word, endness="Iend_LE"))
+            for off, size in spec.stack_operands(word):
+                args.append(st.memory.load(sp + off, size, endness="Iend_LE"))
             idx = len(g.get("fneq_calls", ()))
             written = _written_bytes(st, frame)
             g["fneq_calls"] = tuple(g.get("fneq_calls", ())) + ((spec.name, tuple(args), written),)
@@ -254,6 +254,8 @@ def check(sig: Signature, side_a, side_b, checks: Checks, env, timeout_ms: int, 
             return SolverResult("unknown", f"angr models x87 as 64-bit doubles ({tag} uses x87)")
     if _has_division(side_a) or _has_division(side_b):
         return SolverResult("unknown", "integer division (no fault semantics in VEX)")
+    if any(c.indirect for side in (side_a, side_b) for c in side.callees.values()):
+        return SolverResult("unknown", "indirect calls are not modelled by the angr backend")
 
     inputs = {s.name: claripy.BVS(f"in_{s.name}", 8 * s.size, explicit_name=True) for s in sig.inputs}
     has_loop = side_a.info.has_loop or side_b.info.has_loop

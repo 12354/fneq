@@ -13,6 +13,14 @@ from __future__ import annotations
 import dataclasses
 
 STACK_TOP = {"x86": 0x7FF00000, "x64": 0x7FFFFF000000}
+# Synthetic code addresses that stand for imported functions: a call through an import
+# slot (PE IAT) reaches the stub of that import, where the call is intercepted.
+IMPORT_STUBS = {"x86": 0x7FE00000, "x64": 0x7FFE00000000}
+
+
+def import_stubs(arch: str, slots) -> dict[int, int]:
+    """{import slot address: stub address} for the given slots (deterministic order)."""
+    return {slot: IMPORT_STUBS[arch] + 16 * i for i, slot in enumerate(sorted(slots))}
 RET_ADDR = {"x86": 0xDEAD0000, "x64": 0xDEADBEEF0000}
 
 DEFAULT_X87_CW = 0x027F   # all exceptions masked, round-to-nearest, 53-bit precision
@@ -39,13 +47,22 @@ class CalleeSpec:
     pop: int                  # bytes the callee pops in addition to the return address
     results: tuple[str, ...]  # registers receiving results / clobbers
     first_stack: int = 0      # offset of the first stack argument from the callee's SP
+    indirect: bool = False    # indirect call site: `addr` is the call instruction and the
+                              # target value is passed as an extra first argument
+    variadic: bool = False    # its prolog spills R8 and R9 for va_start (MS x64)
+    stack_arg_sizes: list[int] = dataclasses.field(default_factory=list)  # bytes read per slot; 0/absent = word
+    frame_args: list[dict] = dataclasses.field(default_factory=list)  # explicitly declared pointee extents
 
     def stack_offsets(self, word: int) -> list[int]:
         base = self.first_stack or word
         return [base + word * i for i in range(self.stack_args)]
 
+    def stack_operands(self, word: int) -> list[tuple[int, int]]:
+        return [(off, (self.stack_arg_sizes[i] or word) if i < len(self.stack_arg_sizes) else word)
+                for i, off in enumerate(self.stack_offsets(word))]
+
     def to_lifter(self, word: int) -> dict:
         args = [{"reg": r} for r in self.reg_args]
-        args += [{"offset": off, "size": word} for off in self.stack_offsets(word)]
+        args += [{"offset": off, "size": size} for off, size in self.stack_operands(word)]
         return {"addr": self.addr, "name": self.name, "args": args,
-                "results": list(self.results), "pop": self.pop}
+                "results": list(self.results), "pop": self.pop, "indirect": self.indirect}

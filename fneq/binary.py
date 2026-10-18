@@ -41,6 +41,7 @@ class Binary:
     imports: dict[int, str]      # import slot (IAT/GOT) address -> "lib!name" or "name"
     pdata: dict[int, int] = dataclasses.field(default_factory=dict)  # x64 PE: func start -> unwind info RVA+base
     entry: int | None = None
+    pdata_ranges: list[tuple[int, int, int]] = dataclasses.field(default_factory=list)  # (begin, end, unwind)
 
     def __post_init__(self) -> None:
         self.sections.sort(key=lambda s: s.addr)
@@ -232,12 +233,14 @@ def _load_pe(path: str, data: bytes) -> Binary:
         for imp in entry.imports:
             nm = imp.name.decode("latin-1") if imp.name else f"ord{imp.ordinal}"
             imports[imp.address] = f"{dll}!{nm}"
-    pdata = {}
+    pdata, ranges = {}, []
     if arch == "x64" and hasattr(pe, "DIRECTORY_ENTRY_EXCEPTION"):
         for rf in pe.DIRECTORY_ENTRY_EXCEPTION:
             pdata[base + rf.struct.BeginAddress] = base + rf.struct.UnwindData
+            ranges.append((base + rf.struct.BeginAddress, base + rf.struct.EndAddress,
+                           base + rf.struct.UnwindData))
     return Binary(path, "pe", arch, "windows", base, sections, symbols, funcs, imports, pdata,
-                  entry=base + pe.OPTIONAL_HEADER.AddressOfEntryPoint)
+                  entry=base + pe.OPTIONAL_HEADER.AddressOfEntryPoint, pdata_ranges=sorted(ranges))
 
 
 # ===================================================================== raw

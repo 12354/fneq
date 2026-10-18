@@ -32,7 +32,7 @@ class Options:
     corr: str | None = None
     map_by_symbols: bool = False
     checks: Checks = dataclasses.field(default_factory=Checks)
-    backend: str = "auto"            # auto | alive | angr | fuzz
+    backend: str = "auto"            # auto | lockstep | alive | angr | fuzz
     timeout_ms: int = 20000
     unroll: int = 4
     fuzz_iters: int = 2000
@@ -42,6 +42,7 @@ class Options:
     mxcsr: int = DEFAULT_MXCSR
     max_insns: int = 50_000
     fuzz_time: float = 60.0
+    lockstep_time: float = 60.0
     no_alias: bool = False
     keep_dir: str | None = None
 
@@ -82,6 +83,30 @@ def _side_inputs(side: SideOpts, b: binmod.Binary, entry: int, fi) -> dict:
             "calls": [{"at": hex(c.addr), "callee": c.name, "tail": c.tail} for c in fi.calls]}
 
 
+# Per-process caches: a batch worker compares many pairs of the same two binaries.
+_BINARIES: dict[tuple, binmod.Binary] = {}
+_CORRS: dict[tuple, correspondence.Correspondence] = {}
+
+
+def _load_binary(side: SideOpts) -> binmod.Binary:
+    import os
+    key = (side.path, side.raw_base, side.arch, os.path.getmtime(side.path))
+    if key not in _BINARIES:
+        _BINARIES[key] = binmod.load(side.path, side.raw_base, side.arch)
+    return _BINARIES[key]
+
+
+def _load_corr(opts: Options, ba: binmod.Binary, bb: binmod.Binary) -> correspondence.Correspondence:
+    """The correspondence file parsed once per process; each pair gets its own copy
+    (restrict() and add_readonly() change it per pair)."""
+    import copy
+    import os
+    key = (opts.corr, os.path.getmtime(opts.corr) if opts.corr else 0, id(ba), id(bb), opts.map_by_symbols)
+    if key not in _CORRS:
+        _CORRS[key] = correspondence.load(opts.corr, ba, bb, opts.map_by_symbols).writable_only(bb)
+    return copy.deepcopy(_CORRS[key])
+
+
 def analyse(opts: Options) -> Report:
     ctx = _Ctx(opts)
     d = ctx.data
@@ -93,8 +118,7 @@ def analyse(opts: Options) -> Report:
 
 def _analyse(ctx: _Ctx) -> Report:
     opts, d = ctx.opts, ctx.data
-    ba = binmod.load(opts.a.path, opts.a.raw_base, opts.a.arch)
-    bb = binmod.load(opts.b.path, opts.b.raw_base, opts.b.arch)
+    ba, bb = _load_binary(opts.a), _load_binary(opts.b)
     if ba.arch != bb.arch:
         raise Unsupported(f"architectures differ ({ba.arch} vs {bb.arch}); "
                           "cross-architecture comparison is not supported in v1")
@@ -123,7 +147,9 @@ def _analyse(ctx: _Ctx) -> Report:
     sig = signature.build_signature(arch, cc, ret_kind, [fa, fb])
     d["signature"] = sig.describe()
 
-    corr = correspondence.load(opts.corr, ba, bb, opts.map_by_symbols).writable_only(bb)
+    corr = _load_corr(opts, ba, bb)
+    corr.restrict(fa.data_refs | fa.constants, fb.data_refs | fb.constants)
+    corr.add_readonly(ba, fa.data_refs | fa.constants, bb, fb.data_refs | fb.constants)
     d["correspondence"] = corr.describe()
     d["notes"] += corr.notes
     ca, na = calleemod.callee_specs(ba, fa, cc, corr.overrides, corr.names_a)
@@ -131,14 +157,35 @@ def _analyse(ctx: _Ctx) -> Report:
     d["callees"] = {"A": {hex(k): dataclasses.asdict(v) for k, v in ca.items()},
                     "B": {hex(k): dataclasses.asdict(v) for k, v in cb.items()}}
     d["notes"] += [f"A: {n}" for n in na] + [f"B: {n}" for n in nb]
+    if any(all(k in v for k in ("reg_args", "stack_args", "pop")) for v in corr.overrides.values()):
+        d["assumptions"].append(
+            "complete declared callee signatures replace code-based arity inference; "
+            "their register arguments, stack arguments and cleanup are supplied contracts listed in the correspondence")
+    if any(v.get("frame_args") for v in corr.overrides.values()):
+        d["assumptions"].append(
+            "declared callee_contracts.frame_args bound the stack bytes a callee may access; "
+            "each explicit extent is a supplied contract, not inferred from a function name; "
+            "symbolic extents and ranges crossing saved slots remain unsupported")
 
     d["assumptions"] += [
         "memory is flat; every address outside the image is readable/writable and holds "
         "arbitrary initial contents (writable globals included)",
         "pointer arguments may alias each other and globals" if not opts.no_alias else
         "--no-alias: counterexamples in which an argument points into another argument's "
-        "or a global's region are discarded",
+        "or a global's region are discarded; the lockstep proof models memory as one "
+        "object per pointer: pointers not known to be equal address disjoint objects, "
+        "disjoint from the globals accessed at fixed addresses, and no object wraps "
+        "around the end of the address space; callees keep no frame address after they "
+        "return, so a stack object changes only in calls it is passed to (directly or "
+        "through a frame address stored in a passed object) -- not true of asynchronous "
+        "I/O on stack buffers; the original (side A) passes no junk in an argument its "
+        "callee reads: argument and stack-object bytes that are uninitialised, or a "
+        "register an earlier call clobbered, or the target register of `call reg`, are not "
+        "compared",
         "pointers that do not derive from the stack pointer never point into the callee's own frame",
+        "a frame address passed to a callee gives it one object, up to the next frame address "
+        "passed (x64: or the end of its argument slot above the return address); callees never "
+        "write the caller's return address or the registers its prolog saved",
         f"stack frame modelled as [SP-{sig.frame_below}, SP+{sig.frame_above}); its final contents "
         "are not observable",
         "status flags are 0 and DF=0 at entry; the x87 stack is empty",
@@ -155,8 +202,8 @@ def _analyse(ctx: _Ctx) -> Report:
     side_b = fuzz.Side(bb, fb, cb, corr.regions_b())
     ctx.sig, ctx.env, ctx.side_a, ctx.side_b, ctx.corr = sig, env, side_a, side_b, corr
 
-    backends = {"auto": ["alive", "angr", "fuzz"], "alive": ["alive", "fuzz"],
-                "angr": ["angr", "fuzz"], "fuzz": ["fuzz"]}[opts.backend]
+    backends = {"auto": ["lockstep", "alive", "angr", "fuzz"], "lockstep": ["lockstep"],
+                "alive": ["alive", "fuzz"], "angr": ["angr", "fuzz"], "fuzz": ["fuzz"]}[opts.backend]
     unknown_reasons = []
     for name in backends:
         t0 = time.monotonic()
@@ -165,6 +212,14 @@ def _analyse(ctx: _Ctx) -> Report:
             d["backends"].append({"backend": "unicorn-fuzz", "seconds": round(time.monotonic() - t0, 2),
                                   "result": rep.verdict})
             return rep
+        if name == "lockstep":
+            rep = _run_lockstep(ctx, unknown_reasons)
+            d["backends"].append({"backend": "lockstep", "seconds": round(time.monotonic() - t0, 2),
+                                  "result": d["lockstep"]["result"],
+                                  "reason": d["lockstep"]["reason"]})
+            if rep is not None:
+                return rep
+            continue
         try:
             res = _run_solver(ctx, name)
         except ToolError as e:
@@ -186,10 +241,60 @@ def _analyse(ctx: _Ctx) -> Report:
     return Report("UNKNOWN", "; ".join(unknown_reasons), backends[-1], data=d)
 
 
+def _run_lockstep(ctx: _Ctx, unknown_reasons: list[str]) -> Report | None:
+    """First stage: per-segment proofs for functions compiled to near-identical code.
+
+    Only a completed proof decides the verdict; a localised difference or an
+    unsupported construct is recorded and the other backends take over.
+    """
+    from fneq import lockstep
+    opts, d = ctx.opts, ctx.data
+    corr, cc = ctx.corr, ctx.sig.convention
+
+    def make_spec(tag):
+        names = corr.names_a if tag == "A" else corr.names_b
+
+        def make(binary, info, at, target):
+            # A tail jump bounding did not record: model it like a recorded one.
+            site = bounding.CallSite(at, target, names.get(target) or binary.symbol_at(target)
+                                     or f"0x{target:x}", tail=True)
+            stub = dataclasses.replace(info, calls=[site])
+            specs, _ = calleemod.callee_specs(binary, stub, cc, corr.overrides, names)
+            return site, specs.get(target)
+        return make
+
+    def make_specs(tag):
+        names = corr.names_a if tag == "A" else corr.names_b
+
+        def make(binary, info):
+            # the calls of a callee whose code the lockstep proof inlines
+            return calleemod.callee_specs(binary, info, cc, corr.overrides, names)[0]
+        return make
+    res = lockstep.check(ctx.sig, ctx.side_a, ctx.side_b, opts.checks, ctx.corr.map_b,
+                         timeout_ms=min(opts.timeout_ms, 5000), budget_s=opts.lockstep_time,
+                         make_spec=make_spec, no_alias=opts.no_alias, make_specs=make_specs)
+    d["lockstep"] = {"result": res.status, "reason": res.reason, **res.data}
+    if res.status != "equivalent":
+        unknown_reasons.append(f"lockstep: {res.reason}")
+        return None
+    d["assumptions"].append(
+        "lockstep: a callee that receives a stack address only accesses the object at that "
+        "address (up to the next object passed to a callee or the return address); "
+        "uninitialised stack bytes are not compared"
+        + ("; the stack pointer is 16-byte aligned before the call (x64 ABI)"
+           if ctx.side_a.binary.arch == "x64" else ""))
+    if opts.backend != "lockstep":   # --backend lockstep runs this stage alone
+        bug = _sanity_fuzz(ctx, alive_backend.SolverResult("equivalent", res.reason), "lockstep")
+        if bug:
+            return bug
+    return Report("EQUIVALENT", res.reason, "lockstep", data=d)
+
+
 def _run_solver(ctx: _Ctx, name: str):
     opts, d = ctx.opts, ctx.data
     sa = (ctx.side_a.binary, ctx.side_a.info, ctx.side_a.callees, [])
-    sb = (ctx.side_b.binary, ctx.side_b.info, ctx.side_b.callees, ctx.corr.regions_b())
+    sb = (ctx.side_b.binary, ctx.side_b.info, ctx.side_b.callees, ctx.corr.regions_b(writable_only=True),
+          ctx.corr.regions_b())
     loops = ctx.side_a.info.has_loop or ctx.side_b.info.has_loop
     if name == "alive":
         res = alive_backend.check(ctx.sig, sa, sb, opts.checks, opts.timeout_ms, opts.unroll,
@@ -343,6 +448,7 @@ def _sanity_fuzz(ctx: _Ctx, res, backend: str) -> Report | None:
     """Cross-check of a proof by testing; for a full proof a difference is a tool bug."""
     fr = fuzz.fuzz(ctx.sig, ctx.side_a, ctx.side_b, ctx.opts.checks, ctx.env,
                    iterations=ctx.opts.sanity_iters, seed=ctx.opts.seed, map_b=ctx.corr.map_b,
+                   time_budget=min(ctx.opts.fuzz_time, 30.0),
                    **_probe_switches(ctx, proven=res.status == "equivalent"))
     ctx.data["cross_check"] = {"backend": "unicorn-fuzz", "runs": fr.runs,
                                "coverage": {"A": fuzz.coverage_report(ctx.side_a.info, fr.coverage_a),
@@ -379,6 +485,8 @@ def _run_fuzz(ctx: _Ctx, iters: int, unknown_reasons: list[str]) -> Report:
            "B": fuzz.coverage_report(ctx.side_b.info, fr.coverage_b)}
     d["testing"] = {"runs": fr.runs, "coverage": cov, "runs_hit_instruction_limit": fr.exhausted_runs,
                     "unmapped_accesses": fr.unmapped[:20]}
+    if fr.stopped:
+        d["testing"]["stopped"] = fr.stopped
     why = ("; ".join(unknown_reasons) + "; ") if unknown_reasons else ""
     if fr.counterexample:
         inputs = fr.counterexample["inputs"]
@@ -399,6 +507,8 @@ def _run_fuzz(ctx: _Ctx, iters: int, unknown_reasons: list[str]) -> Report:
             d["counterexample"]["source"] = "unicorn-fuzz"
             return Report("NOT_EQUIVALENT", f"{why}testing found a difference: {diffs[0]}",
                           "unicorn-fuzz", data=d)
+    if fr.stopped and fr.stopped.startswith("coverage"):
+        return Report("UNKNOWN", f"{why}testing skipped: {fr.stopped}", "unicorn-fuzz", data=d)
     return Report("NO_DIFFERENCE_FOUND",
                   f"{why}no difference in {fr.runs} concrete runs "
                   f"(coverage A {cov['A']['percent']}%, B {cov['B']['percent']}%)",

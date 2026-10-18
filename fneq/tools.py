@@ -4,7 +4,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 
-from fneq.errors import ToolError
+from fneq.errors import ToolError, ToolTimeout
 
 # Versions the Docker image pins; `fneq --check-tools` verifies them.
 PINNED = {
@@ -29,7 +29,7 @@ def run(cmd: list[str], timeout: float | None = None, ok_codes: tuple[int, ...] 
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, input=input_text)
     except subprocess.TimeoutExpired as e:
-        raise ToolError(f"{cmd[0]} timed out after {timeout}s") from e
+        raise ToolTimeout(f"{cmd[0]} timed out after {timeout}s") from e
     if p.returncode not in ok_codes:
         tail = (p.stderr or p.stdout)[-1500:]
         raise ToolError(f"{cmd[0]} failed with exit code {p.returncode}: {tail}")

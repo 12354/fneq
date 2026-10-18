@@ -79,6 +79,12 @@ def infer_convention(fi: FunctionInfo, fmt: str, user: str | None) -> Inference:
         return Inference(get_convention(user, fi.arch), ["specified by user"], False)
     ev = []
     reads = fi.regs_read_first
+    if fi.arch == "x64" and fmt in ("pe", "elf"):
+        # x86-64 has one convention per platform. Register reads cannot tell them
+        # apart: an MS x64 function saving the callee-saved RSI/RDI reads them first.
+        name = "ms" if fmt == "pe" else "sysv"
+        ev.append(f"platform convention of {fmt.upper()} x86-64")
+        return Inference(CONVENTIONS[name], ev, True)
     if fi.arch == "x64":
         sysv_only = reads & {"RDI", "RSI"}
         ms_only = reads & {"R8", "R9"} - {"RDI", "RSI"}

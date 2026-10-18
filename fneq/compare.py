@@ -62,6 +62,8 @@ def compare(sig: Signature, ra: RunResult, rb: RunResult, checks: Checks,
         return diffs  # both fault: equal (effects before a fault are not compared)
     for name in sig.outputs:
         va, vb = ra.outputs[name], rb.outputs[name]
+        if name in ret_regs:
+            vb = map_b(vb)  # a returned pointer to a mapped global / constant
         if va == vb:
             continue
         if name in ret_regs:
@@ -75,7 +77,8 @@ def compare(sig: Signature, ra: RunResult, rb: RunResult, checks: Checks,
                 diffs.append(Difference("preserve", k, ra.outputs[k], rb.outputs[k]))
     if checks.calls:
         ca = list(ra.calls)
-        cb = list(rb.calls)
+        # Side-B arguments that point into a mapped global are compared in side-A space.
+        cb = [(name, tuple(map_b(v) for v in args)) for name, args in rb.calls]
         for i in range(max(len(ca), len(cb))):
             x = ca[i] if i < len(ca) else None
             y = cb[i] if i < len(cb) else None

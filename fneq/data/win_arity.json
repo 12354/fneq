@@ -1,0 +1,2692 @@
+{
+"AcquireCredentialsHandleW": [
+"i",
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"AcquireSRWLockExclusive": [
+"i"
+],
+"AcquireSRWLockShared": [
+"i"
+],
+"AddClipboardFormatListener": [
+"i"
+],
+"AdjustTokenPrivileges": [
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i"
+],
+"AdjustWindowRect": [
+"i",
+"i:32",
+"i:32"
+],
+"AllocConsole": [],
+"AllocateAndInitializeSid": [
+"i",
+"i:8",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i"
+],
+"AllowSetForegroundWindow": [
+"i:32"
+],
+"AssignProcessToJobObject": [
+"i",
+"i"
+],
+"AttachConsole": [
+"i:32"
+],
+"BCryptCloseAlgorithmProvider": [
+"i",
+"i:32"
+],
+"BCryptCreateHash": [
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i:32",
+"i:32"
+],
+"BCryptDecrypt": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"BCryptDestroyHash": [
+"i"
+],
+"BCryptDestroyKey": [
+"i"
+],
+"BCryptEncrypt": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"BCryptFinishHash": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"BCryptGenRandom": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"BCryptGenerateSymmetricKey": [
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i:32",
+"i:32"
+],
+"BCryptGetProperty": [
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"BCryptHashData": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"BCryptOpenAlgorithmProvider": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"BCryptSetProperty": [
+"i",
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"CM_Get_DevNode_PropertyW": [
+"i:32",
+"i",
+"i",
+"i",
+"i",
+"i:32"
+],
+"CM_Get_DevNode_Status": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"CM_Get_Device_Interface_ListW": [
+"i",
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"CM_Get_Device_Interface_List_SizeW": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"CM_Get_Device_Interface_PropertyW": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i:32"
+],
+"CM_Locate_DevNodeW": [
+"i",
+"i",
+"i:32"
+],
+"CM_Locate_DevNode_ExW": [
+"i",
+"i",
+"i:32",
+"i"
+],
+"CM_MapCrToWin32Err": [
+"i:32",
+"i:32"
+],
+"CM_Reenumerate_DevNode_Ex": [
+"i:32",
+"i:32",
+"i"
+],
+"CM_Register_Notification": [
+"i",
+"i",
+"i",
+"i"
+],
+"CM_Unregister_Notification": [
+"i"
+],
+"CallNamedPipeW": [
+"i",
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"CallNextHookEx": [
+"i",
+"i:32",
+"i",
+"i"
+],
+"CertCreateSelfSignCertificate": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"CertFreeCertificateContext": [
+"i"
+],
+"CertStrToNameW": [
+"i:32",
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"ChangeServiceConfig2W": [
+"i",
+"i:32",
+"i"
+],
+"ChangeServiceConfigW": [
+"i",
+"i:32",
+"i:32",
+"i:32",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"ClientToScreen": [
+"i",
+"i"
+],
+"ClipCursor": [
+"i"
+],
+"CloseClipboard": [],
+"CloseDesktop": [
+"i"
+],
+"CloseHandle": [
+"i"
+],
+"CloseServiceHandle": [
+"i"
+],
+"CoCreateFreeThreadedMarshaler": [
+"i",
+"i"
+],
+"CoCreateInstance": [
+"i",
+"i",
+"i:32",
+"i",
+"i"
+],
+"CoIncrementMTAUsage": [
+"i"
+],
+"CoInitialize": [
+"i"
+],
+"CoInitializeEx": [
+"i",
+"i:32"
+],
+"CoTaskMemAlloc": [
+"i"
+],
+"CoTaskMemFree": [
+"i"
+],
+"CoUninitialize": [],
+"CompareStringEx": [
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i",
+"i"
+],
+"CompareStringW": [
+"i:32",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"ConnectNamedPipe": [
+"i",
+"i"
+],
+"ControlService": [
+"i",
+"i:32",
+"i"
+],
+"CopyFileW": [
+"i",
+"i",
+"i:32"
+],
+"CreateBitmap": [
+"i",
+"i",
+"i:32",
+"i",
+"i"
+],
+"CreateDIBSection": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i:32"
+],
+"CreateDXGIFactory1": [
+"i",
+"i"
+],
+"CreateDXGIFactory2": [
+"i:32",
+"i",
+"i"
+],
+"CreateDirect3D11DeviceFromDXGIDevice": [
+"i",
+"i"
+],
+"CreateEnvironmentBlock": [
+"i",
+"i",
+"i:32"
+],
+"CreateEventW": [
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"CreateFileW": [
+"i",
+"i:32",
+"i:32",
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"CreateIconIndirect": [
+"i"
+],
+"CreateJobObjectW": [
+"i",
+"i"
+],
+"CreateNamedPipeW": [
+"i",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i"
+],
+"CreatePopupMenu": [],
+"CreateProcessAsUserW": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i:32",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"CreateProcessW": [
+"i",
+"i",
+"i",
+"i",
+"i:32",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"CreateStreamOnHGlobal": [
+"i",
+"i:32",
+"i"
+],
+"CreateThread": [
+"i",
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"CreateToolhelp32Snapshot": [
+"i:32",
+"i:32"
+],
+"CreateWaitableTimerW": [
+"i",
+"i:32",
+"i"
+],
+"CreateWindowExW": [
+"i:32",
+"i",
+"i",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"CryptBinaryToStringA": [
+"i",
+"i:32",
+"i:32",
+"i",
+"i"
+],
+"CryptBinaryToStringW": [
+"i",
+"i:32",
+"i:32",
+"i",
+"i"
+],
+"CryptProtectData": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"CryptUnprotectData": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"D3D11CreateDevice": [
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i:32",
+"i:32",
+"i",
+"i",
+"i"
+],
+"D3D12SerializeRootSignature": [
+"i",
+"i",
+"i",
+"i"
+],
+"DecodePointer": [
+"i"
+],
+"DecryptMessage": [
+"i",
+"i",
+"i:32",
+"i"
+],
+"DefWindowProcW": [
+"i",
+"i:32",
+"i",
+"i"
+],
+"DeleteCriticalSection": [
+"i"
+],
+"DeleteFileW": [
+"i"
+],
+"DeleteObject": [
+"i"
+],
+"DeleteSecurityContext": [
+"i"
+],
+"DestroyEnvironmentBlock": [
+"i"
+],
+"DestroyIcon": [
+"i"
+],
+"DestroyMenu": [
+"i"
+],
+"DestroyWindow": [
+"i"
+],
+"DeviceIoControl": [
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i"
+],
+"DiInstallDevice": [
+"i",
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"DiUninstallDevice": [
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"DisableThreadLibraryCalls": [
+"i"
+],
+"DisconnectNamedPipe": [
+"i"
+],
+"DispatchMessageW": [
+"i"
+],
+"DisplayConfigGetDeviceInfo": [
+"i"
+],
+"DragAcceptFiles": [
+"i",
+"i:32"
+],
+"DragFinish": [
+"i"
+],
+"DragQueryFileW": [
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"DuplicateTokenEx": [
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"DwmGetWindowAttribute": [
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"EmptyClipboard": [],
+"EncodePointer": [
+"i"
+],
+"EncryptMessage": [
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"EndMenu": [],
+"EnterCriticalSection": [
+"i"
+],
+"EnumDisplayDevicesW": [
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"EnumDisplayMonitors": [
+"i",
+"i",
+"i",
+"i"
+],
+"EnumDisplaySettingsW": [
+"i",
+"i:32",
+"i"
+],
+"EnumSystemLocalesW": [
+"i",
+"i:32"
+],
+"EnumWindows": [
+"i",
+"i"
+],
+"EventRegister": [
+"i",
+"i",
+"i",
+"i"
+],
+"EventUnregister": [
+"i"
+],
+"EventWriteString": [
+"i",
+"i:8",
+"i",
+"i"
+],
+"ExitProcess": [
+"i:32"
+],
+"ExitThread": [
+"i:32"
+],
+"ExtractIconExW": [
+"i",
+"i:32",
+"i",
+"i",
+"i:32"
+],
+"FileTimeToSystemTime": [
+"i",
+"i"
+],
+"FindClose": [
+"i"
+],
+"FindFirstFileExW": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i:32"
+],
+"FindFirstFileW": [
+"i",
+"i"
+],
+"FindNextFileW": [
+"i",
+"i"
+],
+"FlsAlloc": [
+"i"
+],
+"FlsFree": [
+"i:32"
+],
+"FlsGetValue": [
+"i:32"
+],
+"FlsSetValue": [
+"i:32",
+"i"
+],
+"FlushFileBuffers": [
+"i"
+],
+"FlushInstructionCache": [
+"i",
+"i",
+"i"
+],
+"FormatMessageW": [
+"i:32",
+"i",
+"i:32",
+"i:32",
+"i",
+"i:32",
+"i"
+],
+"FreeContextBuffer": [
+"i"
+],
+"FreeCredentialsHandle": [
+"i"
+],
+"FreeEnvironmentStringsW": [
+"i"
+],
+"FreeLibrary": [
+"i"
+],
+"FreeLibraryAndExitThread": [
+"i",
+"i:32"
+],
+"FreeMibTable": [
+"i"
+],
+"FreeSid": [
+"i"
+],
+"GetACP": [],
+"GetAdaptersAddresses": [
+"i:32",
+"i:32",
+"i",
+"i",
+"i"
+],
+"GetAncestor": [
+"i",
+"i:32"
+],
+"GetAsyncKeyState": [
+"i:32"
+],
+"GetBestInterfaceEx": [
+"i",
+"i"
+],
+"GetBitmapBits": [
+"i",
+"i:32",
+"i"
+],
+"GetCPInfo": [
+"i:32",
+"i"
+],
+"GetClassLongPtrW": [
+"i",
+"i:32"
+],
+"GetClientRect": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"GetClipboardData": [
+"i:32"
+],
+"GetClipboardSequenceNumber": [],
+"GetCommandLineA": [],
+"GetCommandLineW": [],
+"GetComputerNameW": [
+"i",
+"i"
+],
+"GetConsoleMode": [
+"i",
+"i"
+],
+"GetConsoleOutputCP": [],
+"GetConsoleWindow": [],
+"GetCurrentDirectoryW": [
+"i:32",
+"i"
+],
+"GetCurrentProcess": [],
+"GetCurrentProcessId": [],
+"GetCurrentThread": [],
+"GetCurrentThreadId": [],
+"GetCursor": [],
+"GetCursorInfo": [
+"i"
+],
+"GetCursorPos": [
+"i"
+],
+"GetDC": [
+"i"
+],
+"GetDateFormatW": [
+"i:32",
+"i:32",
+"i",
+"i",
+"i",
+"i:32"
+],
+"GetDisplayConfigBufferSizes": [
+"i:32",
+"i",
+"i"
+],
+"GetDoubleClickTime": [],
+"GetDpiForMonitor": [
+"i",
+"i",
+"i",
+"i"
+],
+"GetDriveTypeW": [
+"i"
+],
+"GetEffectiveRightsFromAclW": [
+"i",
+"i",
+"i"
+],
+"GetEnvironmentStringsW": [],
+"GetEnvironmentVariableA": [
+"i",
+"i",
+"i:32"
+],
+"GetEnvironmentVariableW": [
+"i",
+"i",
+"i:32"
+],
+"GetErrorInfo": [
+"i:32",
+"i"
+],
+"GetExitCodeProcess": [
+"i",
+"i"
+],
+"GetFileAttributesExW": [
+"i",
+"i",
+"i"
+],
+"GetFileAttributesW": [
+"i"
+],
+"GetFileInformationByHandle": [
+"i",
+"i"
+],
+"GetFileSizeEx": [
+"i",
+"i"
+],
+"GetFileType": [
+"i"
+],
+"GetFileVersionInfoSizeW": [
+"i",
+"i"
+],
+"GetFileVersionInfoW": [
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"GetForegroundWindow": [],
+"GetFullPathNameW": [
+"i",
+"i:32",
+"i",
+"i"
+],
+"GetHGlobalFromStream": [
+"i",
+"i"
+],
+"GetIconInfo": [
+"i",
+"i"
+],
+"GetIfTable2Ex": [
+"i",
+"i"
+],
+"GetKeyNameTextW": [
+"i:32",
+"i",
+"i:32"
+],
+"GetKeyState": [
+"i:32"
+],
+"GetKeyboardLayout": [
+"i:32"
+],
+"GetLastError": [],
+"GetLayeredWindowAttributes": [
+"i",
+"i",
+"i",
+"i"
+],
+"GetLocaleInfoW": [
+"i:32",
+"i",
+"i",
+"i:32"
+],
+"GetMenuItemInfoW": [
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"GetMessageExtraInfo": [],
+"GetMessageW": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"GetModuleFileNameW": [
+"i",
+"i",
+"i:32"
+],
+"GetModuleHandleExW": [
+"i:32",
+"i",
+"i"
+],
+"GetModuleHandleW": [
+"i"
+],
+"GetMonitorInfoW": [
+"i",
+"i"
+],
+"GetNamedPipeClientProcessId": [
+"i",
+"i"
+],
+"GetNamedPipeServerProcessId": [
+"i",
+"i"
+],
+"GetNamedSecurityInfoW": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"GetOEMCP": [],
+"GetObjectW": [
+"i",
+"i:32",
+"i"
+],
+"GetOverlappedResult": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"GetOverlappedResultEx": [
+"i",
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"GetPointerPenInfo": [
+"i:32",
+"i"
+],
+"GetPointerType": [
+"i:32",
+"i"
+],
+"GetProcAddress": [
+"i",
+"i"
+],
+"GetProcessHeap": [],
+"GetRawInputData": [
+"i",
+"i:32",
+"i",
+"i",
+"i:32"
+],
+"GetRawInputDeviceInfoW": [
+"i",
+"i:32",
+"i",
+"i"
+],
+"GetScaleFactorForMonitor": [
+"i",
+"i"
+],
+"GetShellWindow": [],
+"GetStartupInfoW": [
+"i"
+],
+"GetStdHandle": [
+"i:32"
+],
+"GetStringTypeW": [
+"i:32",
+"i",
+"i:32",
+"i"
+],
+"GetSystemDirectoryW": [
+"i",
+"i:32"
+],
+"GetSystemMetrics": [
+"i"
+],
+"GetSystemTimeAsFileTime": [
+"i"
+],
+"GetTempPathW": [
+"i:32",
+"i"
+],
+"GetThreadContext": [
+"i",
+"i"
+],
+"GetThreadId": [
+"i"
+],
+"GetTickCount64": [],
+"GetTimeFormatW": [
+"i:32",
+"i:32",
+"i",
+"i",
+"i",
+"i:32"
+],
+"GetTimeZoneInformation": [
+"i"
+],
+"GetTokenInformation": [
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"GetTraceEnableFlags": [
+"i"
+],
+"GetTraceEnableLevel": [
+"i"
+],
+"GetTraceLoggerHandle": [
+"i"
+],
+"GetUserDefaultLCID": [],
+"GetUserNameW": [
+"i",
+"i"
+],
+"GetWindowLongPtrW": [
+"i",
+"i:32"
+],
+"GetWindowLongW": [
+"i",
+"i:32"
+],
+"GetWindowPlacement": [
+"i",
+"i"
+],
+"GetWindowRect": [
+"i",
+"i"
+],
+"GetWindowTextW": [
+"i",
+"i",
+"i:32"
+],
+"GetWindowThreadProcessId": [
+"i",
+"i"
+],
+"GetWindowsDirectoryW": [
+"i",
+"i:32"
+],
+"GlobalAlloc": [
+"i:32",
+"i"
+],
+"GlobalFree": [
+"i"
+],
+"GlobalLock": [
+"i"
+],
+"GlobalSize": [
+"i"
+],
+"GlobalUnlock": [
+"i"
+],
+"HeapAlloc": [
+"i",
+"i:32",
+"i"
+],
+"HeapFree": [
+"i",
+"i:32",
+"i"
+],
+"HeapQueryInformation": [
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"HeapReAlloc": [
+"i",
+"i:32",
+"i",
+"i"
+],
+"HeapSize": [
+"i",
+"i:32",
+"i"
+],
+"HidP_GetButtonCaps": [
+"i",
+"i",
+"i",
+"i"
+],
+"HidP_GetCaps": [
+"i",
+"i"
+],
+"HidP_GetUsageValue": [
+"i",
+"i",
+"i:16",
+"i",
+"i",
+"i",
+"i",
+"i:32"
+],
+"HidP_GetUsages": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i:16",
+"i",
+"i",
+"i",
+"i",
+"i:32"
+],
+"HidP_GetValueCaps": [
+"i",
+"i",
+"i",
+"i"
+],
+"ImmDisableIME": [
+"i"
+],
+"ImmGetContext": [
+"i"
+],
+"ImmReleaseContext": [
+"i",
+"i"
+],
+"ImmSetCompositionWindow": [
+"i",
+"i"
+],
+"InitOnceExecuteOnce": [
+"i",
+"i",
+"i",
+"i"
+],
+"InitializeConditionVariable": [
+"i"
+],
+"InitializeCriticalSection": [
+"i"
+],
+"InitializeCriticalSectionAndSpinCount": [
+"i",
+"i:32"
+],
+"InitializeCriticalSectionEx": [
+"i",
+"i:32",
+"i:32"
+],
+"InitializeProcThreadAttributeList": [
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"InitializeSListHead": [
+"i"
+],
+"InitializeSRWLock": [
+"i"
+],
+"InitializeSecurityContextW": [
+"i",
+"i",
+"i",
+"i",
+"i:32",
+"i:32",
+"i:32",
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"InitializeSecurityDescriptor": [
+"i",
+"i:32"
+],
+"InsertMenuItemW": [
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"InsertMenuW": [
+"i",
+"i:32",
+"i:32",
+"i",
+"i"
+],
+"InterlockedFlushSList": [
+"i"
+],
+"IsClipboardFormatAvailable": [
+"i:32"
+],
+"IsDebuggerPresent": [],
+"IsIconic": [
+"i"
+],
+"IsProcessorFeaturePresent": [
+"i:32"
+],
+"IsValidCodePage": [
+"i:32"
+],
+"IsValidLocale": [
+"i:32",
+"i:32"
+],
+"IsWellKnownSid": [
+"i",
+"i"
+],
+"IsWindowVisible": [
+"i"
+],
+"IsZoomed": [
+"i"
+],
+"KillTimer": [
+"i",
+"i"
+],
+"LCMapStringEx": [
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i",
+"i"
+],
+"LCMapStringW": [
+"i:32",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"LeaveCriticalSection": [
+"i"
+],
+"LoadCursorW": [
+"i",
+"i"
+],
+"LoadLibraryExW": [
+"i",
+"i",
+"i:32"
+],
+"LoadLibraryW": [
+"i"
+],
+"LocalAlloc": [
+"i:32",
+"i"
+],
+"LocalFree": [
+"i"
+],
+"LockWorkStation": [],
+"LogonUserW": [
+"i",
+"i",
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"LookupPrivilegeValueW": [
+"i",
+"i",
+"i"
+],
+"MapVirtualKeyW": [
+"i:32",
+"i:32"
+],
+"MessageBoxW": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"MonitorFromPoint": [
+"i",
+"i:32"
+],
+"MonitorFromWindow": [
+"i",
+"i:32"
+],
+"MoveFileExW": [
+"i",
+"i",
+"i:32"
+],
+"MultiByteToWideChar": [
+"i:32",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"NormalizeString": [
+"i",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"OpenClipboard": [
+"i"
+],
+"OpenInputDesktop": [
+"i:32",
+"i:32",
+"i:32"
+],
+"OpenProcess": [
+"i:32",
+"i:32",
+"i:32"
+],
+"OpenProcessToken": [
+"i",
+"i:32",
+"i"
+],
+"OpenSCManagerW": [
+"i",
+"i",
+"i:32"
+],
+"OpenServiceW": [
+"i",
+"i",
+"i:32"
+],
+"OpenThread": [
+"i:32",
+"i:32",
+"i:32"
+],
+"OpenThreadToken": [
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"OutputDebugStringW": [
+"i"
+],
+"PathFileExistsW": [
+"i"
+],
+"PathFindFileNameW": [
+"i"
+],
+"PathIsNetworkPathW": [
+"i"
+],
+"PeekMessageW": [
+"i",
+"i",
+"i:32",
+"i:32",
+"i:32"
+],
+"PeekNamedPipe": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i"
+],
+"PostMessageW": [
+"i",
+"i:32",
+"i",
+"i"
+],
+"PostQuitMessage": [
+"i:32"
+],
+"PostThreadMessageW": [
+"i:32",
+"i:32",
+"i",
+"i"
+],
+"Process32FirstW": [
+"i",
+"i"
+],
+"Process32NextW": [
+"i",
+"i"
+],
+"ProcessIdToSessionId": [
+"i:32",
+"i"
+],
+"PropVariantClear": [
+"i"
+],
+"QueryContextAttributesW": [
+"i",
+"i:32",
+"i"
+],
+"QueryDisplayConfig": [
+"i:32",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"QueryFullProcessImageNameW": [
+"i",
+"i:32",
+"i",
+"i"
+],
+"QueryPerformanceCounter": [
+"i"
+],
+"QueryPerformanceFrequency": [
+"i"
+],
+"QueryServiceStatusEx": [
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"RaiseException": [
+"i",
+"i",
+"i",
+"i"
+],
+"ReadConsoleW": [
+"i",
+"i",
+"i:32",
+"i",
+"i"
+],
+"ReadFile": [
+"i",
+"i",
+"i:32",
+"i",
+"i"
+],
+"RegCloseKey": [
+"i"
+],
+"RegCreateKeyExW": [
+"i",
+"i",
+"i:32",
+"i",
+"i:32",
+"i:32",
+"i",
+"i",
+"i"
+],
+"RegDeleteKeyExW": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"RegDeleteKeyW": [
+"i",
+"i"
+],
+"RegDeleteValueW": [
+"i",
+"i"
+],
+"RegEnumKeyExW": [
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"RegEnumKeyW": [
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"RegGetValueW": [
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i"
+],
+"RegOpenCurrentUser": [
+"i:32",
+"i"
+],
+"RegOpenKeyExW": [
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"RegQueryValueExW": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"RegSetValueExW": [
+"i",
+"i",
+"i:32",
+"i:32",
+"i",
+"i:32"
+],
+"RegisterClassExW": [
+"i"
+],
+"RegisterDeviceNotificationW": [
+"i",
+"i",
+"i:32"
+],
+"RegisterHotKey": [
+"i",
+"i:32",
+"i:32",
+"i:32"
+],
+"RegisterRawInputDevices": [
+"i",
+"i:32",
+"i:32"
+],
+"RegisterSuspendResumeNotification": [
+"i",
+"i:32"
+],
+"RegisterTraceGuidsW": [
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"RegisterWindowMessageW": [
+"i"
+],
+"ReleaseDC": [
+"i",
+"i"
+],
+"ReleaseSRWLockExclusive": [
+"i"
+],
+"ReleaseSRWLockShared": [
+"i"
+],
+"RemoveClipboardFormatListener": [
+"i"
+],
+"ResetEvent": [
+"i"
+],
+"ResumeThread": [
+"i"
+],
+"RtlCaptureContext": [
+"i"
+],
+"RtlCaptureStackBackTrace": [
+"i:32",
+"i:32",
+"i",
+"i"
+],
+"RtlLookupFunctionEntry": [
+"i",
+"i",
+"i"
+],
+"RtlPcToFileHeader": [
+"i",
+"i"
+],
+"RtlUnwindEx": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"RtlVirtualUnwind": [
+"i:32",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"SHCreateDirectoryExW": [
+"i",
+"i",
+"i"
+],
+"SHGetKnownFolderPath": [
+"i",
+"i:32",
+"i",
+"i"
+],
+"ScreenToClient": [
+"i",
+"i"
+],
+"SendInput": [
+"i:32",
+"i",
+"i:32"
+],
+"SendMessageW": [
+"i",
+"i",
+"i",
+"i"
+],
+"SetClipboardData": [
+"i:32",
+"i"
+],
+"SetConsoleCtrlHandler": [
+"i",
+"i:32"
+],
+"SetConsoleMode": [
+"i",
+"i:32"
+],
+"SetConsoleOutputCP": [
+"i:32"
+],
+"SetConsoleTitleW": [
+"i"
+],
+"SetContextAttributesW": [
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"SetCurrentDirectoryW": [
+"i"
+],
+"SetCurrentProcessExplicitAppUserModelID": [
+"i"
+],
+"SetCursor": [
+"i"
+],
+"SetCursorPos": [
+"i:32",
+"i:32"
+],
+"SetDisplayConfig": [
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"SetEndOfFile": [
+"i"
+],
+"SetEntriesInAclW": [
+"i:32",
+"i",
+"i",
+"i"
+],
+"SetEnvironmentVariableA": [
+"i",
+"i"
+],
+"SetEnvironmentVariableW": [
+"i",
+"i"
+],
+"SetErrorInfo": [
+"i:32",
+"i"
+],
+"SetEvent": [
+"i"
+],
+"SetFilePointerEx": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"SetForegroundWindow": [
+"i"
+],
+"SetInformationJobObject": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"SetLastError": [
+"i:32"
+],
+"SetLayeredWindowAttributes": [
+"i",
+"i:32",
+"i:8",
+"i:32"
+],
+"SetNamedPipeHandleState": [
+"i",
+"i",
+"i",
+"i"
+],
+"SetNamedSecurityInfoW": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"SetPriorityClass": [
+"i",
+"i:32"
+],
+"SetProcessMitigationPolicy": [
+"i",
+"i",
+"i"
+],
+"SetProcessShutdownParameters": [
+"i:32",
+"i:32"
+],
+"SetSecurityDescriptorDacl": [
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"SetStdHandle": [
+"i:32",
+"i"
+],
+"SetThreadContext": [
+"i",
+"i"
+],
+"SetThreadDesktop": [
+"i"
+],
+"SetThreadErrorMode": [
+"i:32",
+"i"
+],
+"SetThreadExecutionState": [
+"i"
+],
+"SetThreadToken": [
+"i",
+"i"
+],
+"SetTimer": [
+"i",
+"i",
+"i:32",
+"i"
+],
+"SetTokenInformation": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"SetUnhandledExceptionFilter": [
+"i"
+],
+"SetWaitableTimer": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i:32"
+],
+"SetWaitableTimerEx": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i:32"
+],
+"SetWindowLongPtrW": [
+"i",
+"i:32",
+"i"
+],
+"SetWindowPlacement": [
+"i",
+"i"
+],
+"SetWindowPos": [
+"i",
+"i",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i:32"
+],
+"SetWindowsHookExW": [
+"i:32",
+"i",
+"i",
+"i:32"
+],
+"SetupDiBuildDriverInfoList": [
+"i",
+"i",
+"i:32"
+],
+"SetupDiCallClassInstaller": [
+"i",
+"i",
+"i"
+],
+"SetupDiCreateDeviceInfoList": [
+"i",
+"i"
+],
+"SetupDiDestroyDeviceInfoList": [
+"i"
+],
+"SetupDiEnumDeviceInfo": [
+"i",
+"i:32",
+"i"
+],
+"SetupDiEnumDeviceInterfaces": [
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"SetupDiEnumDriverInfoW": [
+"i",
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"SetupDiGetClassDevsA": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"SetupDiGetClassDevsW": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"SetupDiGetDeviceInstallParamsW": [
+"i",
+"i",
+"i"
+],
+"SetupDiGetDeviceInstanceIdA": [
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"SetupDiGetDeviceInterfaceDetailW": [
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i"
+],
+"SetupDiGetDevicePropertyW": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"SetupDiGetDeviceRegistryPropertyA": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i:32",
+"i"
+],
+"SetupDiGetDeviceRegistryPropertyW": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i:32",
+"i"
+],
+"SetupDiOpenDeviceInfoW": [
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"SetupDiSetClassInstallParamsW": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"SetupDiSetDeviceInstallParamsW": [
+"i",
+"i",
+"i"
+],
+"SetupDiSetDeviceRegistryPropertyW": [
+"i",
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"SetupDiSetSelectedDevice": [
+"i",
+"i"
+],
+"SetupDiSetSelectedDriverW": [
+"i",
+"i",
+"i"
+],
+"Shell_NotifyIconGetRect": [
+"i",
+"i"
+],
+"Shell_NotifyIconW": [
+"i:32",
+"i"
+],
+"ShowWindow": [
+"i",
+"i:32"
+],
+"Sleep": [
+"i:32"
+],
+"SleepConditionVariableCS": [
+"i",
+"i",
+"i:32"
+],
+"SleepConditionVariableSRW": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"StartServiceW": [
+"i",
+"i:32",
+"i"
+],
+"StrStrIA": [
+"i",
+"i"
+],
+"StrStrIW": [
+"i",
+"i"
+],
+"StrStrW": [
+"i",
+"i"
+],
+"StringFromGUID2": [
+"i",
+"i",
+"i:32"
+],
+"SuspendThread": [
+"i"
+],
+"SwDeviceClose": [
+"i"
+],
+"SwDeviceCreate": [
+"i",
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"SwitchToThread": [],
+"SysFreeString": [
+"i"
+],
+"SysStringLen": [
+"i"
+],
+"SystemTimeToTzSpecificLocalTime": [
+"i",
+"i",
+"i"
+],
+"TerminateProcess": [
+"i",
+"i:32"
+],
+"TerminateThread": [
+"i",
+"i:32"
+],
+"TlsAlloc": [],
+"TlsFree": [
+"i:32"
+],
+"TlsGetValue": [
+"i:32"
+],
+"TlsSetValue": [
+"i:32",
+"i"
+],
+"TraceMessage": null,
+"TrackPopupMenu": [
+"i",
+"i:32",
+"i:32",
+"i:32",
+"i:32",
+"i",
+"i"
+],
+"TranslateMessage": [
+"i"
+],
+"TryAcquireSRWLockExclusive": [
+"i"
+],
+"TryAcquireSRWLockShared": [
+"i"
+],
+"UnhandledExceptionFilter": [
+"i"
+],
+"UnhookWindowsHookEx": [
+"i"
+],
+"UnregisterClassW": [
+"i",
+"i"
+],
+"UnregisterHotKey": [
+"i",
+"i:32"
+],
+"UnregisterSuspendResumeNotification": [
+"i"
+],
+"UnregisterTraceGuids": [
+"i"
+],
+"UpdateProcThreadAttribute": [
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i",
+"i"
+],
+"VerQueryValueW": [
+"i",
+"i",
+"i",
+"i"
+],
+"VerSetConditionMask": [
+"i",
+"i:32",
+"i:8"
+],
+"VerifyVersionInfoW": [
+"i",
+"i:32",
+"i"
+],
+"VirtualAlloc": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"VirtualFree": [
+"i",
+"i",
+"i:32"
+],
+"VirtualProtect": [
+"i",
+"i",
+"i:32",
+"i"
+],
+"VirtualQuery": [
+"i",
+"i",
+"i"
+],
+"WSACleanup": [],
+"WSAGetLastError": [],
+"WSAIoctl": [
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i",
+"i"
+],
+"WSAPoll": [
+"i",
+"i:32",
+"i:32"
+],
+"WSASendMsg": [
+"i",
+"i",
+"i:32",
+"i",
+"i",
+"i"
+],
+"WSASetLastError": [
+"i:32"
+],
+"WSAStartup": [
+"i:16",
+"i"
+],
+"WTHelperGetProvCertFromChain": [
+"i",
+"i:32"
+],
+"WTHelperGetProvSignerFromChain": [
+"i",
+"i:32",
+"i:32",
+"i:32"
+],
+"WTHelperProvDataFromStateData": [
+"i"
+],
+"WTSConnectSessionW": [
+"i:32",
+"i:32",
+"i",
+"i:32"
+],
+"WTSEnumerateProcessesExW": [
+"i",
+"i",
+"i:32",
+"i",
+"i"
+],
+"WTSEnumerateSessionsW": [
+"i",
+"i:32",
+"i:32",
+"i",
+"i"
+],
+"WTSFreeMemory": [
+"i"
+],
+"WTSGetActiveConsoleSessionId": [],
+"WTSLogoffSession": [
+"i",
+"i:32",
+"i:32"
+],
+"WTSQuerySessionInformationW": [
+"i",
+"i:32",
+"i",
+"i",
+"i"
+],
+"WTSQueryUserToken": [
+"i:32",
+"i"
+],
+"WaitForMultipleObjects": [
+"i:32",
+"i",
+"i:32",
+"i:32"
+],
+"WaitForSingleObject": [
+"i",
+"i:32"
+],
+"WaitForSingleObjectEx": [
+"i",
+"i:32",
+"i:32"
+],
+"WakeAllConditionVariable": [
+"i"
+],
+"WakeConditionVariable": [
+"i"
+],
+"WideCharToMultiByte": [
+"i:32",
+"i:32",
+"i",
+"i:32",
+"i",
+"i:32",
+"i",
+"i"
+],
+"WinHttpCloseHandle": [
+"i"
+],
+"WinHttpConnect": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"WinHttpCrackUrl": [
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"WinHttpOpen": [
+"i",
+"i:32",
+"i",
+"i",
+"i:32"
+],
+"WinHttpOpenRequest": [
+"i",
+"i",
+"i",
+"i",
+"i",
+"i",
+"i:32"
+],
+"WinHttpQueryDataAvailable": [
+"i",
+"i"
+],
+"WinHttpQueryHeaders": [
+"i",
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"WinHttpReadData": [
+"i",
+"i",
+"i:32",
+"i"
+],
+"WinHttpReceiveResponse": [
+"i",
+"i"
+],
+"WinHttpSendRequest": [
+"i",
+"i",
+"i:32",
+"i",
+"i:32",
+"i:32",
+"i"
+],
+"WinHttpSetOption": [
+"i",
+"i:32",
+"i",
+"i:32"
+],
+"WinHttpSetStatusCallback": [
+"i",
+"i",
+"i:32",
+"i"
+],
+"WinHttpSetTimeouts": [
+"i",
+"i:32",
+"i:32",
+"i:32",
+"i:32"
+],
+"WinHttpWebSocketClose": [
+"i",
+"i:16",
+"i",
+"i:32"
+],
+"WinHttpWebSocketCompleteUpgrade": [
+"i",
+"i"
+],
+"WinHttpWebSocketQueryCloseStatus": [
+"i",
+"i",
+"i",
+"i:32",
+"i"
+],
+"WinHttpWebSocketReceive": [
+"i",
+"i",
+"i:32",
+"i",
+"i"
+],
+"WinHttpWebSocketSend": [
+"i",
+"i",
+"i",
+"i:32"
+],
+"WinVerifyTrust": [
+"i",
+"i",
+"i"
+],
+"WindowFromDC": [
+"i"
+],
+"WindowFromPoint": [
+"i"
+],
+"WriteConsoleW": [
+"i",
+"i",
+"i:32",
+"i",
+"i"
+],
+"WriteFile": [
+"i",
+"i",
+"i:32",
+"i",
+"i"
+],
+"bind": [
+"i",
+"i",
+"i:32"
+],
+"closesocket": [
+"i"
+],
+"connect": [
+"i",
+"i",
+"i:32"
+],
+"freeaddrinfo": [
+"i"
+],
+"getaddrinfo": [
+"i"
+],
+"getnameinfo": [
+"i"
+],
+"getsockname": [
+"i",
+"i",
+"i"
+],
+"htonl": [
+"i:32"
+],
+"htons": [
+"i:16"
+],
+"inet_addr": [
+"i"
+],
+"inet_ntop": [
+"i"
+],
+"inet_pton": [
+"i"
+],
+"ioctlsocket": [
+"i",
+"i:32",
+"i"
+],
+"lstrlenA": [
+"i"
+],
+"lstrlenW": [
+"i"
+],
+"ntohl": [
+"i"
+],
+"ntohs": [
+"i:16"
+],
+"recv": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"recvfrom": [
+"i",
+"i",
+"i:32",
+"i:32",
+"i",
+"i"
+],
+"select": [
+"i:32",
+"i",
+"i",
+"i",
+"i"
+],
+"send": [
+"i",
+"i",
+"i:32",
+"i:32"
+],
+"sendto": [
+"i",
+"i",
+"i:32",
+"i:32",
+"i",
+"i:32"
+],
+"setsockopt": [
+"i",
+"i:32",
+"i:32",
+"i",
+"i:32"
+],
+"shutdown": [
+"i",
+"i:32"
+],
+"socket": [
+"i:32",
+"i:32",
+"i:32"
+],
+"timeBeginPeriod": [
+"i:32"
+],
+"timeEndPeriod": [
+"i:32"
+],
+"wsprintfW": null
+}

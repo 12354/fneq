@@ -81,12 +81,18 @@ namespace {
 
 json::Array g_unsupported;  // reasons that make the result UNKNOWN
 json::Array g_notes;
+json::Array g_escapes;      // esp0-relative offsets of escaping stack addresses
+bool g_escape_unknown = false;  // an escaping stack address with a non-constant offset
 
 [[noreturn]] void Finish(bool ok, const std::string &error = "") {
   json::Object o;
   o["ok"] = ok;
   o["unsupported"] = std::move(g_unsupported);
   o["notes"] = std::move(g_notes);
+  if (!g_escapes.empty() || g_escape_unknown) {
+    o["escape_offsets"] = std::move(g_escapes);
+    o["escape_unknown"] = g_escape_unknown;
+  }
   if (!error.empty()) o["error"] = error;
   llvm::outs() << json::Value(std::move(o)) << "\n";
   llvm::outs().flush();
@@ -132,9 +138,24 @@ struct Spec {
   std::map<std::string, uint64_t> fixed_regs;  // registers pinned to constants
   uint64_t esp0 = 0, ret_addr = 0, frame_below = 0, frame_above = 0;
   std::map<uint64_t, Callee> callees;
+  // Model of indirect calls (__remill_function_call): an uninterpreted function
+  // of the target value followed by `args`.
+  bool has_indirect = false;
+  Callee indirect;
+  // A stack address escapes (decided by a first lifting attempt): the frame is
+  // visible to callees at its machine addresses.
+  bool frame_visible = false;
+  // Part of the frame the callees see, relative to esp0: [window_lo, window_hi).
+  // Defaults to the whole frame.
+  bool has_window = false;
+  int64_t window_lo = 0, window_hi = 0;
   // Global mappings: addresses in [from, from+size) are translated to `to`.
   struct Remap { uint64_t from, to, size; };
   std::vector<Remap> remap;
+  // Pointer values crossing the function boundary (call arguments, returned
+  // registers) translated into side-A space: mapped globals and constant data.
+  std::vector<Remap> value_remap;
+  std::set<std::string> value_remap_outputs;
 };
 
 uint64_t GetU64(const json::Object &o, StringRef key) {
@@ -220,8 +241,19 @@ Spec LoadSpec(const std::string &path) {
         for (auto &a : *args) callee.args.push_back(ParseArgLoc(a));
       if (auto *res = co->getArray("results"))
         for (auto &r : *res) callee.results.push_back(r.getAsString()->upper());
+      if (co->getBoolean("indirect").value_or(false)) {
+        s.has_indirect = true;
+        s.indirect = callee;  // all indirect call sites share one model
+        continue;
+      }
       s.callees[GetU64(*co, "addr")] = callee;
     }
+  }
+  s.frame_visible = o->getBoolean("frame_visible").value_or(false);
+  if (auto lo = o->getInteger("frame_window_lo"), hi = o->getInteger("frame_window_hi"); lo && hi) {
+    s.has_window = true;
+    s.window_lo = *lo;
+    s.window_hi = *hi;
   }
   if (auto *rm = o->getArray("remap")) {
     for (auto &r : *rm) {
@@ -229,6 +261,14 @@ Spec LoadSpec(const std::string &path) {
       s.remap.push_back({GetU64(*ro, "from"), GetU64(*ro, "to"), GetU64(*ro, "size")});
     }
   }
+  if (auto *rm = o->getArray("value_remap")) {
+    for (auto &r : *rm) {
+      auto *ro = r.getAsObject();
+      s.value_remap.push_back({GetU64(*ro, "from"), GetU64(*ro, "to"), GetU64(*ro, "size")});
+    }
+  }
+  if (auto *a = o->getArray("value_remap_outputs"))
+    for (auto &r : *a) s.value_remap_outputs.insert(r.getAsString()->upper());
   if (s.arch.empty() || s.code.empty()) Fail("spec: arch and code are required");
   return s;
 }
@@ -883,7 +923,8 @@ int main(int argc, char **argv) {
   record_uses(intrinsics.error, "undecodable or unsupported instruction (__remill_error)");
   record_uses(intrinsics.missing_block, "control flow leaves the known function bytes (__remill_missing_block)");
   record_uses(intrinsics.jump, "unresolved indirect jump (__remill_jump)");
-  record_uses(intrinsics.function_call, "indirect call (__remill_function_call)");
+  if (!spec.has_indirect)
+    record_uses(intrinsics.function_call, "indirect call (__remill_function_call)");
   record_uses(intrinsics.async_hyper_call, "hyper call / interrupt (__remill_async_hyper_call)");
   if (g_unsupported.size()) Finish(false, "lifting produced unsupported constructs");
 
@@ -1045,10 +1086,23 @@ int main(int argc, char **argv) {
     return out;
   };
 
-  for (auto &kv : spec.callees) {
-    auto *decl = manager.External(kv.first);
-    const Callee &cs = kv.second;
+  // Translate a pointer-sized value through spec.value_remap (identity elsewhere).
+  auto remap_value = [&](IRBuilder<> &b, Value *v) -> Value * {
+    if (spec.value_remap.empty() || v->getType() != addr_ty) return v;
+    Value *out = v;
+    for (auto &r : spec.value_remap) {
+      Value *rel = b.CreateSub(v, ConstantInt::get(addr_ty, r.from));
+      Value *in = b.CreateICmpULT(rel, ConstantInt::get(addr_ty, r.size));
+      out = b.CreateSelect(in, b.CreateAdd(rel, ConstantInt::get(addr_ty, r.to)), out);
+    }
+    return out;
+  };
+  // A callee stub: call @ext.<name>(args...), store its results and clobbers,
+  // then return like the callee's `ret`. For an indirect call the target value
+  // (the stub's PC argument) is passed as an extra first argument.
+  auto define_stub = [&](Function *decl, const Callee &cs, bool indirect) {
     std::vector<Type *> arg_tys;
+    if (indirect) arg_tys.push_back(addr_ty);
     for (auto &a : cs.args)
       arg_tys.push_back(a.reg.empty() ? (Type *) IntegerType::get(C, a.size * 8)
                                       : (Type *) IntegerType::get(C, reg_ref(a.reg).bits));
@@ -1067,7 +1121,10 @@ int main(int argc, char **argv) {
       auto *state = f->getArg(remill::kStatePointerArgNum);
       auto *sp_ptr = sp_reg->AddressOf(state, ir);
       Value *sp = ir.CreateLoad(sp_reg->type, sp_ptr);
+      // The return address the call pushed; read before the callee runs.
+      Value *ra = ir.CreateCall(MemRead(*M, abits, addr_ty), {sp});
       std::vector<Value *> args;
+      if (indirect) args.push_back(ir.CreateZExtOrTrunc(f->getArg(remill::kPCArgNum), addr_ty));
       for (auto &a : cs.args) {
         if (a.reg.empty()) {
           auto *addr = ir.CreateAdd(sp, ConstantInt::get(addr_ty, a.offset));
@@ -1076,7 +1133,14 @@ int main(int argc, char **argv) {
           args.push_back(load_reg(ir, state, reg_ref(a.reg)));
         }
       }
+      // frame_visible: markers replaced in step 7 by copies of the frame to and
+      // from %M (the callee's view of memory).
+      if (spec.frame_visible)
+        ir.CreateCall(M->getOrInsertFunction("fneq.frame_out", Type::getVoidTy(C), addr_ty), {sp});
+      for (auto &v : args) v = remap_value(ir, v);
       auto *res = ir.CreateCall(ext, args);
+      if (spec.frame_visible)
+        ir.CreateCall(M->getOrInsertFunction("fneq.frame_back", Type::getVoidTy(C)), {});
       unsigned field = 0;
       for (auto &rn : cs.results) {
         auto *r = reg_by_name(rn);
@@ -1092,12 +1156,14 @@ int main(int argc, char **argv) {
       }
       // The callee's `ret` pops the return address (and `pop` more bytes);
       // the PC becomes the return address, as after a real `ret`.
-      Value *ra = ir.CreateCall(MemRead(*M, abits, addr_ty), {sp});
       ir.CreateStore(ra, pc_reg->AddressOf(state, ir));
       ir.CreateStore(ir.CreateAdd(sp, ConstantInt::get(addr_ty, abytes + cs.pop)), sp_ptr);
       ir.CreateRet(f->getArg(remill::kMemoryPointerArgNum));
     });
-  }
+  };
+  for (auto &kv : spec.callees) define_stub(manager.External(kv.first), kv.second, false);
+  if (spec.has_indirect && intrinsics.function_call && !intrinsics.function_call->use_empty())
+    define_stub(intrinsics.function_call, spec.indirect, true);
 
   // --------------------------------------------------------- 4. wrapper
   std::vector<Type *> param_tys{PointerType::get(C, 0)};
@@ -1158,6 +1224,7 @@ int main(int argc, char **argv) {
   unsigned oi = 0;
   for (auto &rn : spec.out_regs) {
     Value *v = load_reg(ir, state, reg_ref(rn));
+    if (spec.value_remap_outputs.count(rn)) v = remap_value(ir, v);
     unsigned shift = 0;
     for (unsigned w : chunks(reg_ref(rn).bits)) {
       Value *part = ir.CreateTrunc(ir.CreateLShr(v, shift), IntegerType::get(C, w));
@@ -1319,6 +1386,65 @@ int main(int argc, char **argv) {
     auto *src = mem_index(eb, ConstantInt::get(addr_ty, spec.esp0 - spec.frame_below));
     eb.CreateMemCpy(frame, MaybeAlign(1), src, MaybeAlign(1), frame_size);
   }
+  if (spec.frame_visible) {
+    // A stack address escapes (an earlier attempt found it). It takes its machine
+    // value below: esp0 is the same constant on both sides, so the two functions
+    // agree only if the escaped addresses agree (that part of the frame layout is
+    // shared). Callees reach the frame through it: around every external call the
+    // frame is written to %M at its machine addresses and read back afterwards.
+    // At return %M's frame region gets its input contents back, so the frame's
+    // final contents stay unobservable.
+    g_notes.push_back("a stack address escapes: the frame is visible to callees at its "
+                      "machine addresses");
+    // Only the window [lo, hi) around the escaped addresses is published: copying
+    // the whole frame makes the solver's job much harder.
+    int64_t lo = -static_cast<int64_t>(spec.frame_below), hi = static_cast<int64_t>(spec.frame_above);
+    if (spec.has_window) {
+      lo = std::max(lo, spec.window_lo);
+      hi = std::min(hi, spec.window_hi);
+    }
+    if (hi <= lo) Fail("empty frame window");
+    const uint64_t win_size = static_cast<uint64_t>(hi - lo);
+    auto *frame_mem = mem_index(eb, ConstantInt::get(addr_ty, spec.esp0 + lo), /*guarded=*/true);
+    auto *frame_win = eb.CreateGEP(i8, frame, ConstantInt::get(i64, lo + static_cast<int64_t>(spec.frame_below)));
+    auto *frame_in = eb.CreateAlloca(ArrayType::get(i8, win_size), nullptr, "frame_in");
+    eb.CreateMemCpy(frame_in, MaybeAlign(1), frame_mem, MaybeAlign(1), win_size);
+    std::vector<CallInst *> outs, backs;
+    std::vector<ReturnInst *> rets;
+    for (auto &I : instructions(*W)) {
+      if (auto *ci = dyn_cast<CallInst>(&I))
+        if (auto *fn = ci->getCalledFunction()) {
+          if (fn->getName() == "fneq.frame_out") outs.push_back(ci);
+          if (fn->getName() == "fneq.frame_back") backs.push_back(ci);
+        }
+      if (auto *ri = dyn_cast<ReturnInst>(&I)) rets.push_back(ri);
+    }
+    for (auto *ci : outs) {
+      // The callee sees the frame at its machine addresses; its own return-address
+      // slot (a code address, different in every build) reads as zero.
+      IRBuilder<> b(ci);
+      b.CreateMemCpy(frame_mem, MaybeAlign(1), frame_win, MaybeAlign(1), win_size);
+      // If the window covers the callee's return-address slot, that slot reads as
+      // zero (it holds a code address, different in every build).
+      Value *ra_rel = b.CreateSub(ci->getArgOperand(0), ConstantInt::get(addr_ty, spec.esp0 + lo));
+      Value *ra_in = b.CreateICmpULE(ra_rel, ConstantInt::get(addr_ty, win_size - abytes));
+      Value *ra_ptr = b.CreateGEP(i8, frame_mem, b.CreateZExt(ra_rel, i64));
+      Value *old = b.CreateLoad(addr_ty, b.CreateSelect(ra_in, ra_ptr, frame_mem));
+      cast<LoadInst>(old)->setAlignment(Align(1));
+      b.CreateStore(b.CreateSelect(ra_in, ConstantInt::get(addr_ty, 0), old),
+                    b.CreateSelect(ra_in, ra_ptr, frame_mem))->setAlignment(Align(1));
+      ci->eraseFromParent();
+    }
+    for (auto *ci : backs) {
+      IRBuilder<> b(ci);
+      b.CreateMemCpy(frame_win, MaybeAlign(1), frame_mem, MaybeAlign(1), win_size);
+      ci->eraseFromParent();
+    }
+    for (auto *ri : rets) {
+      IRBuilder<> b(ri);
+      b.CreateMemCpy(frame_mem, MaybeAlign(1), frame_in, MaybeAlign(1), win_size);
+    }
+  }
 
   std::vector<GlobalVariable *> ro_globals;
   for (auto &r : spec.rodata) {
@@ -1447,21 +1573,75 @@ int main(int argc, char **argv) {
     RunPipeline(*M, kCleanup);
   }
 
+  // Calls through an import slot: the slot holds the import's stub address (a
+  // constant table), so the indirect call's target folded to that constant. Such a
+  // call is a call of the import: same arguments without the target.
+  RunPipeline(*M, kCleanup);
+  if (auto *ind = M->getFunction("ext." + spec.indirect.name); ind && spec.has_indirect) {
+    std::vector<CallInst *> calls;
+    for (auto *u : ind->users())
+      if (auto *ci = dyn_cast<CallInst>(u)) calls.push_back(ci);
+    for (auto *ci : calls) {
+      auto *k = dyn_cast<ConstantInt>(ci->getArgOperand(0));
+      if (!k) continue;
+      auto it = spec.callees.find(k->getZExtValue());
+      if (it == spec.callees.end()) continue;
+      const Callee &imp = it->second;
+      std::vector<Type *> tys;
+      std::vector<Value *> args;
+      for (unsigned i = 1; i < ci->arg_size(); ++i) {
+        tys.push_back(ci->getArgOperand(i)->getType());
+        args.push_back(ci->getArgOperand(i));
+      }
+      if (imp.args.size() != args.size() || imp.results != spec.indirect.results) {
+        Unsupported("call through the import slot of " + imp.name + " with a different model");
+        continue;
+      }
+      auto callee = M->getOrInsertFunction("ext." + imp.name, FunctionType::get(ci->getType(), tys, false));
+      if (auto *fn = dyn_cast<Function>(callee.getCallee())) {
+        fn->setDoesNotThrow();
+        fn->setWillReturn();
+      }
+      IRBuilder<> b(ci);
+      auto *nc = b.CreateCall(callee, args);
+      ci->replaceAllUsesWith(nc);
+      ci->eraseFromParent();
+    }
+    if (g_unsupported.size()) Finish(false, "unsupported import call");
+  }
+
   // Remaining uses of esp0 mean a stack address escaped (passed to a callee,
-  // stored to non-stack memory, returned, compared, ...). Their value would
-  // depend on the frame layout, which the two sides need not share.
+  // stored to non-stack memory, returned, compared, ...). Without frame_visible
+  // this attempt stops and the orchestrator lifts again with it set.
   RunPipeline(*M, kCleanup);
   for (auto *u : make_early_inc_range(esp0_fn->users())) {
     auto *call = cast<CallBase>(u);
-    if (!call->use_empty()) {
+    if (!call->use_empty() && !spec.frame_visible) {
       std::string s;
       raw_string_ostream os(s);
       call->user_back()->print(os);
+      for (auto *use : call->users()) {
+        auto *bo = dyn_cast<BinaryOperator>(use);
+        auto *c = bo && bo->getOpcode() == Instruction::Add ? dyn_cast<ConstantInt>(bo->getOperand(1)) : nullptr;
+        bool plain = c && bo->getOperand(0) == call;
+        if (plain)
+          for (auto *u2 : bo->users())
+            if (!isa<CallBase>(u2) && !isa<StoreInst>(u2) && !isa<InsertValueInst>(u2))
+              plain = false;  // further arithmetic: the escaped range is not known
+        if (plain)
+          g_escapes.push_back(c->getSExtValue());
+        else if (isa<CallBase>(use) || isa<StoreInst>(use) || isa<InsertValueInst>(use))
+          g_escapes.push_back(0);  // esp0 itself
+        else
+          g_escape_unknown = true;
+      }
       Unsupported("address of a stack slot escapes: " + s);
       Finish(false, "stack address escapes");
     }
+    call->replaceAllUsesWith(esp0_const);
     call->eraseFromParent();
   }
+  if (spec.frame_visible) RunPipeline(*M, kCleanup);
 
   if (LowerFPExtToFP80(*W)) RunPipeline(*M, kCleanup);
   if (NarrowUnsignedDivisions(*W)) RunPipeline(*M, kCleanup);

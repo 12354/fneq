@@ -74,6 +74,21 @@ def to_text(rep: Report) -> str:
         for b in d["backends"]:
             L.append(f"  {b['backend']:13} {b['result']:10} {b.get('seconds', '')}s  {b.get('reason', '')}")
         L.append("")
+    ls = d.get("lockstep")
+    if ls and ls.get("segment_pairs") is not None:
+        L.append(f"Lockstep: {ls['result']}, {ls['segment_pairs']} segment pairs, {ls['visits']} visits, "
+                 f"{ls['obligations_proved']} obligations proved by Z3")
+        diff = ls.get("first_difference")
+        if diff:
+            L.append(f"  first difference: A {diff['a']} / B {diff['b']} (segment A {diff['segment'][0]}"
+                     f" / B {diff['segment'][1]}): {diff['what']}")
+        elif ls.get("stopped_at"):
+            L.append(f"  stopped in segment A {ls['stopped_at'][0]} / B {ls['stopped_at'][1]}")
+        L.append("")
+    t = d.get("testing")
+    if t and t.get("stopped"):
+        L.append(f"Testing stopped early: {t['stopped']}")
+        L.append("")
     cex = d.get("counterexample")
     if cex:
         L.append(f"Counterexample (from {cex.get('source', '?')}, replayed concretely):")

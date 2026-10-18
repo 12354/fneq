@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 import hashlib
 from typing import Callable
 
@@ -9,7 +10,7 @@ import unicorn as uc
 from unicorn import x86_const as R
 
 from fneq.binary import Binary
-from fneq.model import (DEFAULT_MXCSR, DEFAULT_X87_CW, RET_ADDR,
+from fneq.model import (DEFAULT_MXCSR, DEFAULT_X87_CW, RET_ADDR, import_stubs,
                         STACK_TOP, CalleeSpec)
 from fneq.signature import Signature
 
@@ -63,16 +64,53 @@ class RunResult:
                 "fault": self.fault, "exhausted": self.exhausted}
 
 
+@functools.lru_cache(maxsize=65536)
+def _background_block(seed: int, block: int) -> bytes:
+    """64 bytes of deterministic 'arbitrary' memory (block = address >> 6).
+
+    Any content is a valid sample of the arbitrary initial memory, but uniformly
+    random qwords are almost never canonical addresses, so every pointer loaded from
+    memory (a vtable, a linked-list node) would fault on both sides. Three in four
+    aligned qwords are therefore shaped into 16-byte aligned canonical user-space
+    pointers.
+    """
+    b = bytearray(hashlib.blake2b(f"{seed}:{block}".encode(), digest_size=64).digest())
+    for w in range(0, 64, 8):
+        if b[w + 1] & 3:
+            b[w] &= 0xF0
+            b[w + 5] &= 0x7F
+            b[w + 6] = b[w + 7] = 0
+    return bytes(b)
+
+
 def background_byte(seed: int, addr: int) -> int:
     """Deterministic 'arbitrary' memory content shared by both sides."""
-    h = hashlib.blake2b(f"{seed}:{addr >> 6}".encode(), digest_size=64).digest()
-    return h[addr & 63]
+    return _background_block(seed, addr >> 6)[addr & 63]
+
+
+@functools.lru_cache(maxsize=4096)
+def background_page(seed: int, page: int) -> bytes:
+    """background_byte() for a whole page."""
+    return b"".join(_background_block(seed, blk >> 6) for blk in range(page, page + PAGE, 64))
 
 
 def callee_result(name: str, reg: str, args: tuple[int, ...], bits: int) -> int:
     """Deterministic result of an uninterpreted callee: a function of its arguments."""
     h = hashlib.blake2b(repr((name, reg, args)).encode(), digest_size=16).digest()
-    return int.from_bytes(h, "little") & ((1 << bits) - 1)
+    val = int.from_bytes(h, "little") & ((1 << bits) - 1)
+    if bits != 64 or reg not in ("RAX", "RDX"):
+        return val
+    # Any value is a valid result of an uninterpreted callee; sample ones that keep
+    # the caller running: a uniformly random 64-bit value is almost never a canonical
+    # address, so every dereference of a returned pointer would fault on both sides.
+    kind = h[15] & 7
+    if kind == 0:
+        return 0
+    if kind == 1:
+        return 1
+    if kind == 2:
+        return val & 0xFF
+    return 0x10000 + (val & 0x7FFF_FFFF_FFF0)  # canonical user-space pointer
 
 
 def _read(mu, name: str) -> int:
@@ -123,6 +161,46 @@ def _memory_operands(arch: str, code: dict[int, bytes]) -> list[tuple]:
     return _MEM_OPERANDS[key]
 
 
+_CALL_INSNS: dict[tuple[str, int, bytes], tuple] = {}
+
+
+def _call_operand(arch: str, addr: int, data: bytes) -> tuple:
+    """(insn size, kind, reg, (base, index, scale, disp)) of the call at addr."""
+    key = (arch, addr, data)
+    if key not in _CALL_INSNS:
+        import capstone
+        md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64 if arch == "x64" else capstone.CS_MODE_32)
+        md.detail = True
+        insn = next(md.disasm(data, addr, 1))
+        op = insn.operands[0]
+        if op.type == capstone.x86.X86_OP_REG:
+            _CALL_INSNS[key] = (insn.size, "reg", insn.reg_name(op.reg).upper(), None)
+        else:
+            m = op.mem
+            base = insn.reg_name(m.base).upper() if m.base else None
+            index = insn.reg_name(m.index).upper() if m.index else None
+            _CALL_INSNS[key] = (insn.size, "mem", None, (base, index, m.scale, m.disp, op.size))
+    return _CALL_INSNS[key]
+
+
+def _indirect_target(mu, arch: str, addr: int, data: bytes, ensure_mapped) -> tuple[int, int]:
+    """Evaluate the target operand of the indirect call at addr: (target, insn size)."""
+    size, kind, reg, mem = _call_operand(arch, addr, data)
+    if kind == "reg":
+        return mu.reg_read(_REG[reg]), size
+    base, index, scale, disp, opsize = mem
+    ea = disp
+    if base == "RIP" or base == "EIP":
+        ea += addr + size
+    elif base:
+        ea += mu.reg_read(_REG[base])
+    if index:
+        ea += mu.reg_read(_REG[index]) * scale
+    ea &= (1 << (64 if arch == "x64" else 32)) - 1
+    ensure_mapped(ea, opsize)
+    return int.from_bytes(mu.mem_read(ea, opsize), "little"), size
+
+
 def run(binary: Binary, entry: int, sig: Signature, inputs: dict[str, int],
         callees: dict[int, CalleeSpec], env: Environment,
         code: dict[int, bytes] | None = None) -> RunResult:
@@ -137,24 +215,45 @@ def run(binary: Binary, entry: int, sig: Signature, inputs: dict[str, int],
     def bg(addr: int) -> int:
         return background_byte(env.memory_seed, env.space(addr))
 
-    def map_page(page: int, fill_background: bool) -> None:
+    def remapped(page: int) -> bool:
+        return any(here < page + PAGE and page < here + size for here, _, size in env.regions)
+
+    def in_image(addr: int) -> bool:
+        return binary.section_at(addr) is not None
+
+    def page_bytes(page: int) -> bytes:
+        """Initial content of a page: shared background, overlaid by read-only sections.
+
+        Read-only sections keep their contents (constants, code); writable data is
+        an input like all other memory, so it gets the shared arbitrary background,
+        exactly as in the symbolic backends.
+        """
+        ro = [s for s in binary.sections if not s.writable and s.addr < page + PAGE and page < s.end]
+        if ro and ro[0].addr <= page and page + PAGE <= ro[0].end:
+            return binary.read(page, PAGE)
+        if remapped(page):
+            out = bytearray(bg(page + i) for i in range(PAGE))
+        else:
+            out = bytearray(background_page(env.memory_seed, page))
+        for s in ro:
+            lo, hi = max(s.addr, page), min(s.end, page + PAGE)
+            out[lo - page:hi - page] = binary.read(lo, hi - lo)
+        return bytes(out)
+
+    def map_page(page: int, fill: bool) -> None:
         if page in mapped:
             return
         mu.mem_map(page, PAGE, uc.UC_PROT_ALL)
         mapped.add(page)
-        if fill_background:
-            mu.mem_write(page, bytes(bg(page + i) for i in range(PAGE)))
+        if fill or in_image(page) or in_image(page + PAGE - 1):
+            mu.mem_write(page, page_bytes(page))
 
-    # Image sections. Read-only sections keep their contents (constants, code);
-    # writable data is an input like all other memory, so it gets the shared
-    # arbitrary background, exactly as in the symbolic backends.
-    for sec in binary.sections:
-        start = sec.addr & ~(PAGE - 1)
-        end = (sec.end + PAGE - 1) & ~(PAGE - 1)
-        for page in range(start, end, PAGE):
+    # Image pages are mapped on first touch (on_unmapped below): mapping every page
+    # of a multi-megabyte image per run is far too slow. The function's own code is
+    # mapped up front.
+    for addr, data in (code or {}).items():
+        for page in range(addr & ~(PAGE - 1), ((addr + max(len(data), 1) - 1) & ~(PAGE - 1)) + 1, PAGE):
             map_page(page, True)
-        if not sec.writable:
-            mu.mem_write(sec.addr, sec.data + bytes(sec.vsize - len(sec.data)))
 
     # Stack: background content (the caller's garbage), then RA and arguments.
     sp0 = STACK_TOP[arch]
@@ -178,11 +277,21 @@ def run(binary: Binary, entry: int, sig: Signature, inputs: dict[str, int],
     mu.reg_write(_REG["MXCSR"], env.mxcsr)
     mu.reg_write(_REG["EFLAGS"], 0x2)
 
+    # Calls through import slots (PE IAT) land on a stub address per import; the
+    # slot in the image holds an unbound name-table offset, not code.
+    stubs = import_stubs(arch, [a for a, c in callees.items() if a in binary.imports and not c.indirect])
+    if stubs:
+        callees = dict(callees)
+        for slot, stub in stubs.items():
+            map_page(slot & ~(PAGE - 1), True)
+            mu.mem_write(slot, stub.to_bytes(word, "little"))
+            callees[stub] = callees.pop(slot)
+
     # Pages for callees and the return address: execution there is intercepted.
     map_page(ra & ~(PAGE - 1), False)
-    for c in callees.values():
-        if (c.addr & ~(PAGE - 1)) not in mapped:
-            map_page(c.addr & ~(PAGE - 1), False)
+    for addr in callees:
+        if (addr & ~(PAGE - 1)) not in mapped:
+            map_page(addr & ~(PAGE - 1), False)
 
     writes: list[tuple[int, int, int]] = []
     calls: list[tuple[str, tuple[int, ...]]] = []
@@ -207,6 +316,11 @@ def run(binary: Binary, entry: int, sig: Signature, inputs: dict[str, int],
         kind = {uc.UC_MEM_READ_UNMAPPED: "read", uc.UC_MEM_WRITE_UNMAPPED: "write",
                 uc.UC_MEM_FETCH_UNMAPPED: "fetch"}.get(access, str(access))
         pc = mu_.reg_read(pc_reg)
+        if in_image(addr) and in_image(addr + size - 1):
+            # Lazily mapped image page (code or data), not an access outside the image.
+            for page in range(addr & ~(PAGE - 1), ((addr + size - 1) & ~(PAGE - 1)) + 1, PAGE):
+                map_page(page, True)
+            return True
         unmapped.append({"address": addr, "size": size, "kind": kind, "pc": pc})
         if kind == "fetch" or addr + size > limit:
             return False  # outside the canonical user range: a fault, as in the model
@@ -227,13 +341,41 @@ def run(binary: Binary, entry: int, sig: Signature, inputs: dict[str, int],
         if callee is None:
             return
         sp = mu_.reg_read(sp_reg)
+        if callee.indirect:
+            # Executed in place of the call instruction: nothing is pushed, the call
+            # is recorded with its target value, and execution resumes after it.
+            if state["fault"]:
+                return  # the operand address already faulted (non-canonical)
+
+            def ensure_mapped(a: int, n: int) -> None:
+                if a + n > limit:
+                    raise uc.UcError(uc.UC_ERR_READ_UNMAPPED)
+                for page in range(a & ~(PAGE - 1), ((a + n - 1) & ~(PAGE - 1)) + 1, PAGE):
+                    map_page(page, True)
+
+            try:
+                target, size = _indirect_target(mu_, arch, addr, bytes(mu_.mem_read(addr, 16)),
+                                                ensure_mapped)
+            except uc.UcError:
+                state["fault"] = "non-canonical / kernel address"
+                mu_.emu_stop()
+                return
+            args = [target] + [_read(mu_, r) for r in callee.reg_args]
+            args_t = tuple(args)
+            shared_t = tuple(env.space(v) for v in args_t)  # same on both sides
+            calls.append((callee.name, args_t))
+            for r in callee.results:
+                mu_.reg_write(_REG[r], callee_result(callee.name, r, shared_t, bits))
+            mu_.reg_write(pc_reg, addr + size)
+            return
         args = [_read(mu_, r) for r in callee.reg_args]
-        for off in callee.stack_offsets(word):
-            args.append(int.from_bytes(mu_.mem_read(sp + off, word), "little"))
+        for off, size in callee.stack_operands(word):
+            args.append(int.from_bytes(mu_.mem_read(sp + off, size), "little"))
         args_t = tuple(args)
+        shared_t = tuple(env.space(v) for v in args_t)  # same on both sides
         calls.append((callee.name, args_t))
         for r in callee.results:
-            mu_.reg_write(_REG[r], callee_result(callee.name, r, args_t, bits))
+            mu_.reg_write(_REG[r], callee_result(callee.name, r, shared_t, bits))
         ret_to = int.from_bytes(mu_.mem_read(sp, word), "little")
         mu_.reg_write(sp_reg, (sp + word + callee.pop) & mask)
         mu_.reg_write(pc_reg, ret_to)
@@ -273,13 +415,13 @@ def run(binary: Binary, entry: int, sig: Signature, inputs: dict[str, int],
     mu.hook_add(uc.UC_HOOK_MEM_UNMAPPED, on_unmapped)
     mu.hook_add(uc.UC_HOOK_BLOCK, on_block)
     mu.hook_add(uc.UC_HOOK_CODE, on_code, begin=ra, end=ra)
-    for c in callees.values():
-        mu.hook_add(uc.UC_HOOK_CODE, on_code, begin=c.addr, end=c.addr)
+    for addr in callees:
+        mu.hook_add(uc.UC_HOOK_CODE, on_code, begin=addr, end=addr)
 
     exhausted = False
     try:
         mu.emu_start(entry, ra, count=env.max_insns)
-        if mu.reg_read(pc_reg) != ra:
+        if mu.reg_read(pc_reg) != ra and not state["fault"]:
             exhausted = True
     except uc.UcError as e:
         state["fault"] = {uc.UC_ERR_EXCEPTION: "cpu exception (e.g. divide error)",
@@ -305,7 +447,7 @@ def run(binary: Binary, entry: int, sig: Signature, inputs: dict[str, int],
     def read_byte(a: int) -> int:
         page = a & ~(PAGE - 1)
         if page not in mapped:
-            return bg(a)
+            return page_bytes(page)[a - page] if in_image(a) else bg(a)
         return mu.mem_read(a, 1)[0]
 
     return RunResult(outputs, writes, calls, coverage, unmapped, state["fault"], exhausted,

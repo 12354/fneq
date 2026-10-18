@@ -11,9 +11,10 @@ from fneq import tools
 from fneq.binary import Binary
 from fneq.bounding import FunctionInfo
 from fneq.compare import Checks
-from fneq.errors import ToolError
-from fneq.model import RET_ADDR, STACK_TOP, CalleeSpec
-from fneq.signature import Signature
+from fneq.errors import ToolError, ToolTimeout
+from fneq.callees import INDIRECT_NAME
+from fneq.model import CALL_RESULTS, RET_ADDR, STACK_TOP, CalleeSpec, import_stubs
+from fneq.signature import RET_KINDS, Signature
 
 # The spec's required passes, then: full unrolling of loops with a constant trip
 # count (exact, and loop-free code is much easier for Alive2), reassociate (sorts
@@ -23,7 +24,8 @@ from fneq.signature import Signature
 NORMALISE = ("function(mem2reg,sroa,instcombine,simplifycfg,early-cse,"
              "loop-simplify,lcssa,loop(indvars),"
              "loop-unroll<O2;no-partial;no-peeling;no-runtime;no-upperbound;full-unroll-max=1024>,"
-             "instcombine,simplifycfg,div-rem-pairs,reassociate,instcombine,early-cse,simplifycfg)")
+             "instcombine,simplifycfg,div-rem-pairs,reassociate,instcombine,early-cse,simplifycfg,"
+             "dse,instcombine,simplifycfg)")
 MAX_RODATA_WINDOW = 0x4000
 
 
@@ -68,15 +70,39 @@ def _rodata(binary: Binary, info: FunctionInfo) -> list[dict]:
 
 
 def lifter_spec(name: str, binary: Binary, info: FunctionInfo, sig: Signature,
-                callees: dict[int, CalleeSpec], remap: list[tuple[int, int, int]]) -> dict:
+                callees: dict[int, CalleeSpec], remap: list[tuple[int, int, int]],
+                value_remap: list[tuple[int, int, int]] | None = None) -> dict:
     word = sig.word
+    # Import slots hold stub addresses (as in the harness); the lifter turns indirect
+    # calls whose target folds to a stub into calls of that import.
+    stubs = import_stubs(sig.arch, [a for a, c in callees.items() if a in binary.imports and not c.indirect])
+    rodata = _rodata(binary, info)
+    for w in rodata:
+        start, data = w["addr"], bytearray.fromhex(w["hex"])
+        for slot, stub in stubs.items():
+            if start <= slot and slot + word <= start + len(data):
+                data[slot - start:slot - start + word] = stub.to_bytes(word, "little")
+        w["hex"] = data.hex()
+    lifted_callees = []
+    for addr, c in callees.items():
+        d = c.to_lifter(word)
+        if addr in stubs:
+            d["addr"] = stubs[addr]
+            d["import"] = True
+        lifted_callees.append(d)
+    if stubs and not any(c.indirect for c in callees.values()):
+        # __remill_function_call must be modelled for the call through the slot.
+        lifted_callees.append(CalleeSpec(0, INDIRECT_NAME, list(sig.convention.int_args)
+                                         + list(sig.convention.float_args), 0, 0,
+                                         CALL_RESULTS[sig.convention.name],
+                                         word + sig.convention.shadow, indirect=True).to_lifter(word))
     return {
         "arch": "x86" if sig.arch == "x86" else "amd64",
         "os": binary.os,
         "name": name,
         "entry": info.entry,
         "code": [{"addr": a, "hex": d.hex()} for a, d in sorted(info.code.items())],
-        "rodata": _rodata(binary, info),
+        "rodata": rodata,
         "in_regs": [s.name for s in sig.inputs if s.kind == "reg"],
         "stack_args": [{"offset": s.offset, "size": s.size} for s in sig.inputs if s.kind == "stack"],
         "out_regs": sig.outputs,
@@ -84,8 +110,12 @@ def lifter_spec(name: str, binary: Binary, info: FunctionInfo, sig: Signature,
         "ret_addr": RET_ADDR[sig.arch],
         "frame_below": sig.frame_below,
         "frame_above": sig.frame_above,
-        "callees": [c.to_lifter(word) for c in callees.values()],
+        "callees": lifted_callees,
         "remap": [{"from": here, "to": a, "size": size} for here, a, size in remap if here != a],
+        # Pointer values passed to callees or returned, translated into side-A space.
+        "value_remap": [{"from": here, "to": a, "size": size}
+                        for here, a, size in (value_remap or remap) if here != a],
+        "value_remap_outputs": list(RET_KINDS[sig.ret_kind][sig.arch]),
     }
 
 
@@ -101,14 +131,16 @@ def lift(spec: dict, workdir: str, tag: str) -> str:
     diag = json.loads(lines[-1])
     if not diag.get("ok"):
         reasons = diag.get("unsupported") or [diag.get("error", "unknown lifter failure")]
-        raise _Unsupported("; ".join(reasons))
+        raise _Unsupported("; ".join(reasons), diag)
     if not os.path.exists(out) or os.path.getsize(out) == 0:
         raise ToolError("fneq-lift reported success but wrote no IR")
     return out
 
 
 class _Unsupported(Exception):
-    pass
+    def __init__(self, msg: str, diag: dict | None = None):
+        super().__init__(msg)
+        self.diag = diag or {}
 
 
 def normalise(ll: str, workdir: str, tag: str) -> str:
@@ -140,6 +172,18 @@ def ir_has_loops(ll: str) -> bool:
     """Does the (normalised) IR still contain a loop?"""
     p = tools.run(["opt", "-passes=print<loops>", "-disable-output", ll], timeout=120)
     return "Loop at depth" in (p.stdout + p.stderr)
+
+
+def _canonical_names(text: str) -> str:
+    """Rename local values and labels by order of first appearance (SROA/instcombine
+    names carry counters that differ between otherwise identical functions)."""
+    names: dict[str, str] = {}
+
+    def rename(m: re.Match) -> str:
+        return names.setdefault(m.group(0), f"%v{len(names)}")
+    text = re.sub(r"%[-a-zA-Z$._0-9]+", rename, text)
+    return re.sub(r"^([-a-zA-Z$._0-9]+):", lambda m: names.get("%" + m.group(1), m.group(0)) + ":",
+                  text, flags=re.M)
 
 
 def function_text(ll: str, name: str) -> str:
@@ -192,18 +236,54 @@ def _parse_cex(out: str) -> dict[str, int]:
 
 def check(sig: Signature, side_a: tuple, side_b: tuple, checks: Checks,
           timeout_ms: int, unroll: int, machine_loops: bool, keep_dir: str | None = None) -> SolverResult:
-    """side_x = (binary, info, callees, remap)."""
+    """side_x = (binary, info, callees, remap[, value_remap])."""
     workdir = keep_dir or tempfile.mkdtemp(prefix="fneq-alive-")
     os.makedirs(workdir, exist_ok=True)
+    spec_a = lifter_spec("src", *side_a[:2], sig, side_a[2], side_a[3])
+    spec_b = lifter_spec("tgt", *side_b[:2], sig, side_b[2], side_b[3],
+                         side_b[4] if len(side_b) > 4 else None)
     try:
-        ll_a = normalise(lift(lifter_spec("src", *side_a[:2], sig, side_a[2], side_a[3]), workdir, "a"), workdir, "a")
-        ll_b = normalise(lift(lifter_spec("tgt", *side_b[:2], sig, side_b[2], side_b[3]), workdir, "b"), workdir, "b")
+        escapes, unknown = [], False
+        try:
+            ll_a = lift(spec_a, workdir, "a")
+        except _Unsupported as e:
+            if "stack slot escapes" not in str(e):
+                raise
+            escapes += e.diag.get("escape_offsets", [])
+            unknown |= e.diag.get("escape_unknown", True)
+            ll_a = None
+        try:
+            ll_b = lift(spec_b, workdir, "b")
+        except _Unsupported as e:
+            if "stack slot escapes" not in str(e):
+                raise
+            escapes += e.diag.get("escape_offsets", [])
+            unknown |= e.diag.get("escape_unknown", True)
+            ll_b = None
+        if ll_a is None or ll_b is None:
+            # A stack address reaches a callee (or memory): lift both sides again with
+            # the frame visible to callees at its machine addresses. Only a window from
+            # the lowest escaped address up to the entry SP (or a little above an
+            # escaped address in the caller's area) is published, unless an escaped
+            # address is not a constant offset.
+            for spec in (spec_a, spec_b):
+                spec["frame_visible"] = True
+                if escapes and not unknown:
+                    spec["frame_window_lo"] = min(escapes)
+                    spec["frame_window_hi"] = max(0, max(escapes) + 0x40)
+            ll_a, ll_b = lift(spec_a, workdir, "a"), lift(spec_b, workdir, "b")
+        ll_a, ll_b = normalise(ll_a, workdir, "a"), normalise(ll_b, workdir, "b")
     except _Unsupported as e:
         return SolverResult("unknown", f"lifting: {e}")
     fa, fb = function_text(ll_a, "src"), function_text(ll_b, "tgt")
     # Loops that normalisation fully unrolled (constant trip count) need no bound.
     has_loops = ir_has_loops(ll_a) or ir_has_loops(ll_b)
-    identical = fa.replace("@src(", "@F(") == fb.replace("@tgt(", "@F(")
+    identical = _canonical_names(fa.replace("@src(", "@F(")) == _canonical_names(fb.replace("@tgt(", "@F("))
+    if identical:
+        # Fast path: the same lowered function (every effect, in the same order, loops
+        # included), so equivalent by construction without asking the solver.
+        return SolverResult("equivalent", "normalised IR of both functions is identical",
+                            textual_identical=True, ir_a=fa, ir_b=fb)
 
     if not (checks.ret and checks.memory and checks.calls and checks.preserve):
         return SolverResult("unknown", "Alive2 checks all effects at once; disabled checks need the angr backend",
@@ -222,8 +302,11 @@ def check(sig: Signature, side_a: tuple, side_b: tuple, checks: Checks,
     import concurrent.futures as cf
 
     def direction(src: str, tgt: str):
-        p = tools.run(base + [f"--src-fn={src}", f"--tgt-fn={tgt}", linked],
-                      timeout=max(60, 6 * timeout_ms / 1000), ok_codes=(0, 1))
+        try:
+            p = tools.run(base + [f"--src-fn={src}", f"--tgt-fn={tgt}", linked],
+                          timeout=max(60, 6 * timeout_ms / 1000), ok_codes=(0, 1))
+        except ToolTimeout as e:
+            return src, tgt, str(e), ("unknown", f"Timeout ({e})")
         out = p.stdout + p.stderr
         return src, tgt, out, _parse_alive(out)
 
